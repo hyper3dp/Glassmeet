@@ -1,5 +1,5 @@
 import { BrowserRouter as Router, Route, Routes, Navigate, Outlet, useLocation } from 'react-router-dom';
-import { lazy, Suspense, useLayoutEffect } from 'react';
+import { lazy, Suspense, useEffect, useLayoutEffect, useState } from 'react';
 import { ThemeProvider } from 'next-themes';
 import { embedTheme } from '@/lib/embed.js';
 import { AuthProvider, useAuth } from '@/lib/Authcontext.jsx';
@@ -85,6 +85,23 @@ const LandingPage = () => {
 
 // Public pages have their own look (html.site in Index.css); the host app keeps the app tokens.
 const HOST_APP = /^\/(dashboard|calendar|event-types|bookings|availability|whatsapp|settings|calendar-connections|analytics)(\/|$)/;
+// Toasts appear on app pages and booking pages (and once on Landing after an account is deleted,
+// which asks with a 'gm-toaster' event). Elsewhere the toast code never loads. Once mounted it
+// stays; sonner replays toasts made before it mounts.
+const TOAST_PAGES = /^\/(dashboard|calendar|event-types|bookings|availability|whatsapp|settings|calendar-connections|analytics|book)(\/|$)/;
+const ToasterWhenNeeded = () => {
+  const { pathname } = useLocation();
+  const [asked, setAsked] = useState(false);
+  const [on, setOn] = useState(false);
+  useEffect(() => {
+    const ask = () => setAsked(true);
+    window.addEventListener('gm-toaster', ask);
+    return () => window.removeEventListener('gm-toaster', ask);
+  }, []);
+  useEffect(() => { if (asked || TOAST_PAGES.test(pathname)) setOn(true); }, [asked, pathname]);
+  return on ? <Suspense fallback={null}><Toaster /></Suspense> : null;
+};
+
 const SiteTheme = () => {
   const { pathname } = useLocation();
   useLayoutEffect(() => { document.documentElement.classList.toggle('site', !HOST_APP.test(pathname)); }, [pathname]);
@@ -151,8 +168,8 @@ function App() {
             <ScrollToTop />
             <AuthenticatedApp />
             <BugReport />
+            <ToasterWhenNeeded />
           </Router>
-          <Suspense fallback={null}><Toaster /></Suspense>
       </AuthProvider>
     </ThemeProvider>
   );

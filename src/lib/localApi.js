@@ -190,6 +190,45 @@ const emailTimedOut = (error) => error?.status === 504 || error?.code === 'reque
   || /error sending (confirmation|recovery|magic link|invite)/i.test(error?.message || '');
 const EMAIL_DOWN = 'We couldn’t send the email just now. Please try again in a few minutes.';
 
+const bookingPagePreloads = new Map();
+let bookingPageMissing = false; // booking_page() isn't in the database yet: ask separately
+const loadBookingPage = async (id) => {
+  // One round trip (migration 20261114130000_booking_page.sql). The event is asked for alongside
+  // it, so a database without the function (or any other failure) costs no extra time: the
+  // separate requests carry on from there. Once the migration is live, the second ask can go.
+  const eventRequest = api.events.getPublic(id);
+  eventRequest.catch(() => { /* awaited below if needed */ });
+  if (!bookingPageMissing) {
+    const supabase = await getSupabase();
+    const { data, error } = await supabase.rpc('booking_page', { p_id: id });
+    if (!error && data === null) throw new Error('This booking page could not be found.');
+    if (!error && data?.event) {
+      return {
+        event: data.event,
+        rules: data.availability?.rules || [],
+        exceptions: data.availability?.exceptions || [],
+        booked: data.busy || [],
+        holidays: data.holidays || [],
+      };
+    }
+    if (notDeployed(error)) bookingPageMissing = true;
+  }
+  const event = await eventRequest;
+  // a switched-off event can't be booked; the page says so without the rest
+  if (event.active === false) return { event };
+  try {
+    const hostId = event.created_by_id;
+    const [{ rules, exceptions }, booked, holidays] = await Promise.all([
+      api.availability.forHost(hostId),
+      api.entities.BookedSlot.filter({ host_id: hostId, status: 'confirmed' }),
+      api.holidays.forHost(hostId).catch(() => []),
+    ]);
+    return { event, rules, exceptions, booked, holidays };
+  } catch (error) {
+    throw Object.assign(error instanceof Error ? error : new Error(String(error)), { found: true });
+  }
+};
+
 export const api = {
   entities,
   app: { 
@@ -501,6 +540,23 @@ export const api = {
       if (!event) throw new Error('This booking page could not be found.');
       // older events saved the host's email as their name; guests see "Host" until a name is set
       return event.host_name?.includes('@') ? { ...event, host_name: null } : event;
+    },
+  },
+  // Everything a booking page shows: the event, then its host's hours, busy times and holidays
+  // side by side. preload() starts it at app start-up, alongside the page's own code (lib/pages.js);
+  // take() hands the page that request, or makes a new one (a retry, a later visit).
+  // A failure after the event was found carries found: true (the page offers a retry).
+  bookingPage: {
+    preload: (id) => {
+      if (bookingPagePreloads.has(id)) return;
+      const request = loadBookingPage(id);
+      request.catch(() => { /* reported to the page that takes it */ });
+      bookingPagePreloads.set(id, request);
+    },
+    take: (id) => {
+      const request = bookingPagePreloads.get(id);
+      bookingPagePreloads.delete(id);
+      return request || loadBookingPage(id);
     },
   },
   bookings: {

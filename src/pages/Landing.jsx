@@ -219,7 +219,10 @@ export default function Landing() {
       if (sessionStorage.getItem('gm-account-deleted')) {
         sessionStorage.removeItem('gm-account-deleted');
         // sonner loads only when needed, keeping it off the landing page's first load
-        import('sonner').then(({ toast }) => toast.success('Your account and all its data were deleted.'));
+        import('sonner').then(({ toast }) => {
+          toast.success('Your account and all its data were deleted.');
+          window.dispatchEvent(new Event('gm-toaster')); // mounts the toaster (APP.jsx)
+        });
       }
     } catch { /* storage unavailable */ }
   }, []);

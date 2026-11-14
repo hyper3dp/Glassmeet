@@ -188,18 +188,11 @@ export default function BookingPage() {
   useEffect(() => { load(); }, []);
 
   const load = async () => {
-    let found = false;
     try {
-      const ev = await api.events.getPublic(eventTypeId);
+      // usually already on its way: started at app start-up (lib/pages.js)
+      const { event: ev, rules: r, exceptions: e, booked: b, holidays: h } = await api.bookingPage.take(eventTypeId);
       // a switched-off event can't be booked; say so up front rather than at the last click
       if (ev.active === false) { setError('This event isn’t taking bookings right now.'); setLoading(false); return; }
-      found = true;
-      const hostId = ev.created_by_id;
-      const [{ rules: r, exceptions: e }, b, h] = await Promise.all([
-        api.availability.forHost(hostId),
-        api.entities.BookedSlot.filter({ host_id: hostId, status: 'confirmed' }),
-        api.holidays.forHost(hostId).catch(() => []),
-      ]);
       setRules(r);
       // the host's public holidays are whole days off
       setExceptions([...e, ...holidayExceptions(h)]);
@@ -209,7 +202,7 @@ export default function BookingPage() {
       setLoadFailed(false);
     } catch (err) {
       // offline, a slow network or a failure after the event was found isn't a missing page
-      const retryable = found || !navigator.onLine || /fetch|network|timeout|load failed/i.test(err?.message || '');
+      const retryable = Boolean(err?.found) || !navigator.onLine || /fetch|network|timeout|load failed/i.test(err?.message || '');
       setLoadFailed(retryable);
       setError(retryable ? 'We couldn’t load this page. Check your connection and try again.' : 'This booking page could not be found. Ask the host for a new link.');
     }

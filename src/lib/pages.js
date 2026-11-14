@@ -49,6 +49,7 @@ const PUBLIC_ROUTES = {
 };
 
 import { getSupabase } from '@/lib/supabaseClient';
+import { api } from '@/lib/localApi';
 
 const ignore = () => {}; // a failed preload retries when the page renders
 
@@ -64,7 +65,12 @@ export function preloadPage(path) {
     PAGES.appShell().catch(ignore);
     PAGES[APP_ROUTES[clean]]().catch(ignore);
   } else if (PUBLIC_ROUTES[clean]) PAGES[PUBLIC_ROUTES[clean]]().catch(ignore);
-  else if (clean.startsWith('/book/')) PAGES.booking().catch(ignore);
+  else if (clean.startsWith('/book/')) {
+    PAGES.booking().catch(ignore);
+    // and its data, so it arrives with the page's code instead of after it
+    const id = decodeURIComponent(clean.slice('/book/'.length).split('/')[0]);
+    if (id) api.bookingPage.preload(id);
+  }
   else if (clean.startsWith('/confirm/')) PAGES.confirmation().catch(ignore);
 }
 
