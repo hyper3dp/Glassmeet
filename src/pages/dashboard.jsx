@@ -1,13 +1,15 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '@/lib/localApi';
-import { Calendar, Plus, MessageCircle, CheckCircle2, Link2, Hourglass, ChevronRight } from 'lucide-react';
-import { GlassButton, EmptyState, Spinner, LoadError, PageHeader, Avatar } from '@/components/glass';
+import { Calendar, Plus, MessageCircle, CheckCircle2, Link2, Hourglass, ChevronRight, ClipboardList, Check } from 'lucide-react';
+import { GlassButton, EmptyState, Spinner, LoadError, PageHeader, Avatar, BetaTag } from '@/components/glass';
 import EventCard from '@/components/eventcard.jsx';
 import { formatMeetingDate, formatMeetingTime, buildWhatsAppShareLink } from '@/lib/whatsapp';
 import { detectTimezone } from '@/lib/Availability.js';
 import { appPath } from '@/lib/authReturnTo';
 import { isExpiredCancellation } from '@/lib/bookings';
+import { useBetaFeature } from '@/lib/beta';
+import { weekSummary, formatHours, agendaText } from '@/lib/agenda';
 
 const BOOKINGS_LIMIT = 200;
 
@@ -18,6 +20,9 @@ export default function Dashboard({ profile }) {
   const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState(false);
   const timezone = profile?.timezone || detectTimezone();
+  const weekOn = useBetaFeature('week');
+  const agendaOn = useBetaFeature('agenda');
+  const [agendaCopied, setAgendaCopied] = useState(false);
 
   const [loadFailed, setLoadFailed] = useState(false);
   const [reloads, setReloads] = useState(0);
@@ -68,6 +73,14 @@ export default function Dashboard({ profile }) {
     () => known.filter((b) => isOn(b) && dayKey(b.start_time) === todayKey),
     [known, todayKey, dayFormat]
   );
+  // beta: the next 7 days (see lib/agenda.js)
+  const week = useMemo(() => (weekOn ? weekSummary(known, timezone) : null), [weekOn, known, timezone]);
+  const copyAgenda = async () => {
+    try { await navigator.clipboard.writeText(agendaText(known, timezone)); } catch { return; }
+    setAgendaCopied(true);
+    setTimeout(() => setAgendaCopied(false), 2000);
+  };
+
   const recent = useMemo(() => bookings.filter((b) => !isExpiredCancellation(b)).slice(0, 5), [bookings]);
 
   const eventColor = (id) => eventTypes.find((e) => e.id === id)?.color;
@@ -132,12 +145,39 @@ export default function Dashboard({ profile }) {
         <Stat label="Event types" value={eventTypes.length} />
       </dl>
 
+      {/* Beta: this week at a glance */}
+      {week && (
+        <section aria-labelledby="week-title" className="mb-8 rounded-xl border border-border bg-card px-5 py-4 shadow-card">
+          <div className="flex items-center gap-2">
+            <h2 id="week-title" className="text-sm font-bold">Next 7 days</h2>
+            <BetaTag />
+          </div>
+          {week.meetings === 0 ? (
+            <p className="mt-1.5 text-sm text-muted-foreground">Nothing booked yet. Share your booking link to fill your week.</p>
+          ) : (
+            <dl className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
+              <WeekStat label="Meetings" value={week.meetings} />
+              <WeekStat label="Hours booked" value={formatHours(week.minutes)} />
+              <WeekStat label="Busiest day" value={week.busiest ? `${week.busiest.day} (${week.busiest.count})` : '–'} />
+            </dl>
+          )}
+        </section>
+      )}
+
       <div className="grid gap-8 xl:grid-cols-[1fr_340px] [&>section]:min-w-0">
         {/* Upcoming meetings */}
         <section>
           <div className="mb-3 flex items-center justify-between">
             <h2 className="text-lg font-bold">Upcoming meetings</h2>
-            <Link to="/bookings" className="text-sm font-semibold text-link hover:underline">View all</Link>
+            <div className="flex items-center gap-3">
+              {agendaOn && (
+                <button type="button" onClick={copyAgenda} className="flex items-center gap-1.5 text-sm font-semibold text-link hover:underline">
+                  {agendaCopied ? <><Check className="w-4 h-4" /> Agenda copied</> : <><ClipboardList className="w-4 h-4" /> Copy agenda</>}
+                  <BetaTag />
+                </button>
+              )}
+              <Link to="/bookings" className="text-sm font-semibold text-link hover:underline">View all</Link>
+            </div>
           </div>
           <div className="rounded-xl border border-border bg-card shadow-card overflow-hidden">
             {groups.length === 0 ? (
@@ -215,6 +255,15 @@ function Stat({ label, value }) {
     <div className="bg-card px-5 py-4">
       <dt className="text-sm text-muted-foreground">{label}</dt>
       <dd className="mt-0.5 text-2xl font-bold tabular">{value}</dd>
+    </div>
+  );
+}
+
+function WeekStat({ label, value }) {
+  return (
+    <div>
+      <dt className="text-sm text-muted-foreground">{label}</dt>
+      <dd className="text-lg font-bold tabular">{value}</dd>
     </div>
   );
 }

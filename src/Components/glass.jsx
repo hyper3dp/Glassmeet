@@ -229,6 +229,11 @@ export function PageHeader({ title, description, actions, children, className })
   );
 }
 
+// Marks a feature from the Beta features menu in Settings (same pill as the menu's)
+export function BetaTag({ className }) {
+  return <span className={cn('px-2 py-0.5 rounded-full text-xs font-semibold bg-primary-soft text-link', className)}>Beta</span>;
+}
+
 // Underline tabs (Calendly's "Event types | Single-use links" row). tabs: [{ value, label, count? }]
 export function Tabs({ tabs, value, onChange, className }) {
   return (

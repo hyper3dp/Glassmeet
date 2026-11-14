@@ -3,9 +3,9 @@ import { useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import { api } from '@/lib/localApi';
 import {
-  BookOpen, Calendar, Clock, MessageCircle, Copy, Check, X, Trash2, Mail, Phone, ChevronRight, CheckCircle2, Search, Video,
+  BookOpen, Calendar, Clock, MessageCircle, Copy, Check, X, Trash2, Mail, Phone, ChevronRight, CheckCircle2, Search, Video, Download, History,
 } from 'lucide-react';
-import { GlassButton, GlassInput, GlassTextarea, GlassLabel, EmptyState, Spinner, PageHeader, Tabs, SaveStatus } from '@/components/glass';
+import { GlassButton, GlassInput, GlassTextarea, GlassLabel, EmptyState, Spinner, PageHeader, Tabs, SaveStatus, BetaTag } from '@/components/glass';
 import { useAutosave } from '@/lib/useAutosave';
 import {
   formatMeetingDate, formatMeetingTime, buildWhatsAppLink, fillTemplate, buildBookingContext, DEFAULT_CONFIRMATION_TEMPLATE,
@@ -16,6 +16,8 @@ import { withoutExpiredCancellations } from '@/lib/bookings';
 import { appPath } from '@/lib/authReturnTo';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { LIMITS } from '@/lib/inputRules';
+import { useBetaFeature } from '@/lib/beta';
+import { bookingsCsv, downloadFile, guestMeetings, meetingStatus } from '@/lib/agenda';
 
 const TABS = ['upcoming', 'pending', 'past', 'cancelled'];
 // the messages a host can send from a meeting; the default follows what just happened
@@ -38,6 +40,8 @@ export default function Bookings({ profile, whatsapp }) {
   const [selected, setSelected] = useState(null);
   const [confirming, setConfirming] = useState(null); // { kind: 'cancel' | 'decline', booking }
   const timezone = profile?.timezone || detectTimezone();
+  const exportOn = useBetaFeature('export');
+  const historyOn = useBetaFeature('guestHistory');
 
   const setParam = (key, value) => setParams((p) => { const next = new URLSearchParams(p); if (value) next.set(key, value); else next.delete(key); return next; }, { replace: true });
 
@@ -152,6 +156,12 @@ export default function Bookings({ profile, whatsapp }) {
     return list;
   }, [filtered, timezone]);
 
+  // beta: the list on screen (this tab, or the search results) as a spreadsheet
+  const exportList = () => {
+    const day = new Intl.DateTimeFormat('en-CA', { timeZone: timezone }).format(new Date());
+    downloadFile(`glassmeet-meetings-${query ? 'search' : filter}-${day}.csv`, bookingsCsv(filtered, timezone));
+  };
+
   if (loading) return <div className="flex justify-center py-24"><Spinner /></div>;
 
   return (
@@ -187,6 +197,11 @@ export default function Bookings({ profile, whatsapp }) {
             {!query && filter === 'cancelled' && '. Canceled meetings disappear 2 days after they’re canceled.'}
             <span className="hidden sm:inline"> · {timezone}</span>
           </span>
+          {exportOn && !loadError && (
+            <GlassButton type="button" size="sm" variant="ghost" onClick={exportList} disabled={filtered.length === 0}>
+              <Download className="w-4 h-4" /> Export CSV <BetaTag />
+            </GlassButton>
+          )}
         </div>
         {loadError ? (
           <div className="px-5 py-12 text-center">
@@ -210,7 +225,7 @@ export default function Bookings({ profile, whatsapp }) {
       </div>
 
       {selected && (
-        <BookingDetail key={selected.booking.id} booking={selected.booking} initialKind={selected.kind} justChanged={selected.justChanged} timezone={timezone} messageFor={messageFor}
+        <BookingDetail key={selected.booking.id} booking={selected.booking} history={historyOn ? guestMeetings(selected.booking, bookings) : null} initialKind={selected.kind} justChanged={selected.justChanged} timezone={timezone} messageFor={messageFor}
           onClose={()=>setSelected(null)} onCancel={()=>askCancel(selected.booking)} onApprove={()=>approve(selected.booking)} onDecline={()=>askDecline(selected.booking)}
           onChanged={(fields) => setBookings((list) => list.map((x) => (x.id === selected.booking.id ? { ...x, ...fields } : x)))} />
       )}
@@ -277,7 +292,7 @@ function BookingCard({ booking, timezone, getMessage, onView, onCancel, onApprov
   );
 }
 
-function BookingDetail({ booking, initialKind, justChanged, timezone, messageFor, onClose, onCancel, onApprove, onDecline, onChanged }) {
+function BookingDetail({ booking, history, initialKind, justChanged, timezone, messageFor, onClose, onCancel, onApprove, onDecline, onChanged }) {
   const [notes, setNotes] = useState(booking.notes || '');
   const [copied, setCopied] = useState(false);
   const [meetingUrl, setMeetingUrl] = useState(booking.meeting_url || '');
@@ -346,6 +361,7 @@ function BookingDetail({ booking, initialKind, justChanged, timezone, messageFor
             <InfoRow icon={Mail} label="Email" value={booking.guest_email || 'Not given'} href={/^[^\s@?&#]+@[^\s@?&#]+$/.test(booking.guest_email || '') ? `mailto:${booking.guest_email}` : undefined} />
             <InfoRow icon={Phone} label="WhatsApp" value={booking.guest_phone || 'Not given'} href={booking.guest_phone && `tel:${booking.guest_phone}`} />
           </div>
+          {history && <GuestHistory booking={booking} history={history} timezone={timezone} />}
           {booking.guest_notes && (
             <div>
               <div className="mb-1.5 text-sm font-semibold">Guest notes</div>
@@ -410,6 +426,36 @@ function InfoRow({ icon: Icon, label, value, href }) {
     <div className="rounded-lg border border-border p-3">
       <div className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5 mb-0.5"><Icon className="w-3 h-3" /> {label}</div>
       {href ? <a href={href} className="block font-semibold truncate text-link hover:underline">{value}</a> : <div className="font-semibold truncate">{value}</div>}
+    </div>
+  );
+}
+
+// Beta: the guest's other meetings with this host (same WhatsApp number or email), newest first
+function GuestHistory({ booking, history, timezone }) {
+  const first = booking.guest_name?.split(' ')[0] || 'this guest';
+  const shown = history.slice(0, 4);
+  return (
+    <div className="rounded-lg border border-border p-4">
+      <div className="flex items-center gap-2 text-sm font-semibold"><History className="w-4 h-4" /> Guest history <BetaTag /></div>
+      {history.length === 0 ? (
+        <p className="mt-1.5 text-sm text-muted-foreground">Your first meeting with {first}.</p>
+      ) : (
+        <>
+          <p className="mt-1.5 text-sm text-muted-foreground">{history.length === 1 ? `1 other meeting with ${first}` : `${history.length} other meetings with ${first}`}</p>
+          <ul className="mt-2 space-y-1.5">
+            {shown.map((b) => {
+              const status = meetingStatus(b);
+              return (
+                <li key={b.id} className="flex items-center justify-between gap-3 text-sm">
+                  <span className="min-w-0 truncate"><span className="font-semibold">{formatMeetingDate(b.start_time, timezone)}</span> · {b.event_name || 'Meeting'}</span>
+                  {status !== 'Confirmed' && <span className={`shrink-0 text-xs font-semibold ${status === 'Pending' ? 'text-warning' : 'text-destructive'}`}>{status}</span>}
+                </li>
+              );
+            })}
+          </ul>
+          {history.length > shown.length && <p className="mt-2 text-xs text-hint">and {history.length - shown.length} more</p>}
+        </>
+      )}
     </div>
   );
 }

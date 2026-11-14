@@ -7,9 +7,12 @@ import ErrorBoundary from '@/components/ErrorBoundary.jsx';
 import { api } from '@/lib/localApi';
 import { appPath } from '@/lib/authReturnTo';
 import { prefetchAppPages } from '@/lib/pages.js';
+import { useBetaFeature } from '@/lib/beta';
 
 // only new hosts see it, so it loads on demand (the loading spinner simply stays a moment longer)
 const Onboarding = lazy(() => import('@/components/Onboarding.jsx'));
+// beta keyboard shortcuts: loaded only while switched on in Settings, Beta features
+const Shortcuts = lazy(() => import('@/components/Shortcuts.jsx'));
 
 const Spinner = () => <div className="w-8 h-8 border-2 border-primary-soft border-t-primary rounded-full animate-spin" />;
 
@@ -19,6 +22,7 @@ export default function AppShell() {
   const { profile, whatsapp, setWhatsapp, loading, error, updateProfile, reload } = useProfile();
   const [cmdOpen, setCmdOpen] = useState(false);
   const location = useLocation();
+  const shortcutsOn = useBetaFeature('shortcuts');
 
   // Stable across route changes and the command palette opening, so pages reading useApp()
   // don't all re-render with them
@@ -84,6 +88,7 @@ export default function AppShell() {
         </ErrorBoundary>
       </Layout>
       <CommandPalette open={cmdOpen} onClose={closeCommandPalette} />
+      {shortcutsOn && <Suspense fallback={null}><Shortcuts /></Suspense>}
     </AppContext.Provider>
   );
 }

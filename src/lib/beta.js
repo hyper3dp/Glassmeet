@@ -5,6 +5,11 @@ import { useSyncExternalStore } from 'react';
 export const BETA_FEATURES = [
   { id: 'embed', name: 'Add to website', body: 'Put a booking button, pop-up or link for any event type on your own website. Find it in each event type’s menu.' },
   { id: 'countdown', name: 'Next meeting countdown', body: 'See how long until your next meeting at the top of every page, with a Join button when it’s about to start. Works straight away, with nothing to set up.' },
+  { id: 'week', name: 'This week at a glance', body: 'A card on your dashboard with your meetings and booked hours for the next 7 days, and your busiest day.' },
+  { id: 'agenda', name: 'Copy your agenda', body: 'Copy the next 7 days of meetings as plain text from your dashboard, ready to paste into a WhatsApp chat, a note or an email.' },
+  { id: 'export', name: 'Export meetings', body: 'Download the meetings you’re looking at on the Meetings page as a spreadsheet (CSV) for Excel, Numbers or Google Sheets.' },
+  { id: 'guestHistory', name: 'Guest history', body: 'See how often you’ve met a guest before, and when, in each meeting’s details. Matched by WhatsApp number or email.' },
+  { id: 'shortcuts', name: 'Keyboard shortcuts', body: 'Move around without the mouse: press G then D, C, M, E, A, W or S to open a page, N for a new event type and ? to see them all.' },
 ];
 
 const KEY = 'gm-beta';
