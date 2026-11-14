@@ -2,7 +2,7 @@
 // errors, failed requests and pages visited, so a report says what happened without the person
 // having to. Temporary: the button hides itself after REPORTS_UNTIL (delete this file,
 // Components/BugReport.jsx and their two imports to remove it for good).
-import { supabase } from '@/lib/supabaseClient';
+import { getSupabase } from '@/lib/supabaseClient';
 
 export const REPORTS_UNTIL = '2026-12-31';
 export const reportsOpen = () => new Date() < new Date(`${REPORTS_UNTIL}T23:59:59`);
@@ -103,6 +103,7 @@ export const collectDetails = () => {
 };
 
 export const sendBugReport = async ({ message, email, details }) => {
+  const supabase = await getSupabase();
   const { data: { session } } = await supabase.auth.getSession();
   const { error } = await supabase.from('bug_reports').insert({
     message: message.trim().slice(0, 4000),

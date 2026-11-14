@@ -1,5 +1,5 @@
 // Calendar integration utilities for GlassMeet
-import { icsText, icsParam, icsFold, meetingLocation } from '@/lib/ics.js';
+import { icsText, icsParam, icsFold, icsEmail, meetingLocation } from '@/lib/ics.js';
 // Apple Calendar (.ics) + Google Calendar (add-event URL)
 
 // Format a Date as an iCalendar UTC timestamp: YYYYMMDDTHHMMSSZ
@@ -13,7 +13,7 @@ const escapeIcs = icsText;
 const foldLine = icsFold;
 
 // Build the event description block with guest + meeting details
-const buildEventDescription = (booking, eventType, host) => {
+const buildEventDescription = (booking, eventType) => {
   // email is optional on some events: no empty "Email:" line
   const details = [
     `Guest: ${booking.guest_name || ''}`,
@@ -33,7 +33,6 @@ export const generateIcsEvent = (booking, eventType, host) => {
   const title = `${pending ? '(Pending) ' : ''}${eventType?.name || 'Meeting'} with ${hostName}`;
   const description = buildEventDescription(booking, eventType, host);
   const location = meetingLocation(booking, eventType);
-  const tz = booking.timezone || 'UTC';
 
   const lines = [
     'BEGIN:VCALENDAR',
@@ -53,13 +52,15 @@ export const generateIcsEvent = (booking, eventType, host) => {
     `TRANSP:OPAQUE`,
   ];
 
-  // Attendee: guest
-  if (booking.guest_email) {
-    lines.push(`ATTENDEE;CN=${icsParam(booking.guest_name)};ROLE=REQ-PARTICIPANT;RSVP=TRUE:mailto:${booking.guest_email}`);
+  // Attendee: guest. Guests type their email, and the database only limits its length, so
+  // anything that isn't a plain address (a line break would add lines to the file) is left out.
+  const guestEmail = icsEmail(booking.guest_email);
+  if (guestEmail) {
+    lines.push(`ATTENDEE;CN=${icsParam(booking.guest_name)};ROLE=REQ-PARTICIPANT;RSVP=TRUE:mailto:${guestEmail}`);
   }
 
   // Organizer: host
-  const hostEmail = host?.email || eventType?.host_email || '';
+  const hostEmail = icsEmail(host?.email || eventType?.host_email);
   if (hostEmail) {
     lines.push(`ORGANIZER;CN=${icsParam(hostName)}:mailto:${hostEmail}`);
   }

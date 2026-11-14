@@ -10,9 +10,6 @@ import {
   generateSlots, isPastDate, isWithinMaxFuture, detectTimezone, bookingWindowDays, COMMON_TIMEZONES, dateInZone,
 } from '@/lib/Availability.js';
 import { formatMeetingDate } from '@/lib/whatsapp';
-import { isValidPhone } from '@/lib/phone';
-import PhoneInput from '@/components/PhoneInput.jsx';
-import { getDevice } from '@/lib/devicedetect.js';
 import { holidayExceptions } from '@/lib/holidays.js';
 import { appPath } from '@/lib/authReturnTo';
 import { isEmbed, useEmbedResize } from '@/lib/embed.js';
@@ -21,6 +18,12 @@ import { LIMITS, onlyName, onlyEmail } from '@/lib/inputRules';
 
 // guests rarely open it (desktop only), so its dialog code loads on demand
 const QRCodeModal = lazy(() => import('@/components/QrcodeModal.jsx'));
+// The phone field carries every country's number rules (~145 kB), needed only once a time is
+// picked: it starts loading when the guest clicks a time, and the form waits for it.
+let phoneLib = null; // lib/phone once loaded, so the Book check stays synchronous
+const loadPhoneLib = () => import('@/lib/phone').then((m) => (phoneLib = m));
+const loadPhoneInput = () => { loadPhoneLib().catch(() => {}); return import('@/components/PhoneInput.jsx'); };
+const PhoneInput = lazy(loadPhoneInput);
 
 // locations whose meeting can be created for each booking through the host's connection
 const LINK_MADE_ON_BOOKING = ['Google Meet', 'Microsoft Teams'];
@@ -59,7 +62,11 @@ export default function BookingPage() {
   // and back on the picked time when returning to the list.
   const nextRef = useRef(null);
   const lastPicked = useRef(null);
-  useEffect(() => { if (pendingSlot !== null) nextRef.current?.focus(); }, [pendingSlot]);
+  useEffect(() => {
+    if (pendingSlot === null) return;
+    nextRef.current?.focus();
+    loadPhoneInput().catch(() => { /* retried when the form renders */ });
+  }, [pendingSlot]);
   useEffect(() => {
     if (selectedSlot) {
       lastPicked.current = selectedSlot.date.getTime();
@@ -133,7 +140,6 @@ export default function BookingPage() {
   const [loadFailed, setLoadFailed] = useState(false);
   const [showMore, setShowMore] = useState(false);
 
-  const device = getDevice();
   const bookingUrl = `${window.location.origin}${appPath(`/book/${eventTypeId}`)}`;
 
   // Group meeting: count existing bookings for this event
@@ -292,7 +298,11 @@ export default function BookingPage() {
     if (!form.guest_phone.trim()) return fail('Enter your WhatsApp number.', 'g-phone');
     // the host reaches the guest on WhatsApp, so it has to be a real mobile number
     const phone = form.guest_phone;
-    if (!isValidPhone(phone)) return fail('That isn’t a valid WhatsApp number. Check the country and the number.', 'g-phone');
+    // loaded with the phone field above; only a very fast click can get here before it
+    if (!phoneLib) {
+      try { await loadPhoneLib(); } catch { return fail('We couldn’t reach GlassMeet. Check your connection and try again; your details are kept.'); }
+    }
+    if (!phoneLib.isValidPhone(phone)) return fail('That isn’t a valid WhatsApp number. Check the country and the number.', 'g-phone');
     if (!selectedSlot) return;
     // Validate required custom questions
     if (event?.custom_questions) {
@@ -625,7 +635,9 @@ export default function BookingPage() {
                 </div>
                 <div>
                   <GlassLabel htmlFor="g-phone">WhatsApp number *</GlassLabel>
-                  <PhoneInput id="g-phone" value={form.guest_phone} onChange={(guest_phone)=>setForm((f) => ({...f, guest_phone}))} hint="The host confirms your meeting on WhatsApp." />
+                  <Suspense fallback={<><div className="h-11 rounded-lg border border-input bg-field" /><p className="mt-1.5 text-xs text-muted-foreground">The host confirms your meeting on WhatsApp.</p></>}>
+                    <PhoneInput id="g-phone" value={form.guest_phone} onChange={(guest_phone)=>setForm((f) => ({...f, guest_phone}))} hint="The host confirms your meeting on WhatsApp." />
+                  </Suspense>
                 </div>
                 <div>
                   <GlassLabel htmlFor="g-notes" className="leading-snug">Please share anything that will help prepare for our meeting.</GlassLabel>

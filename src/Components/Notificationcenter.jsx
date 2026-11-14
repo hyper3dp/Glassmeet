@@ -1,19 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Bell, X, Check } from 'lucide-react';
+import { Bell, Check } from 'lucide-react';
 import { api } from '@/lib/localApi';
 import { cn } from '@/lib/utils';
-
-const ICONS = {
-  new_booking: Bell,
-  cancellation: X,
-  reschedule: Bell,
-  calendar_error: Bell,
-  whatsapp_error: Bell,
-  upcoming_meeting: Bell,
-  waitlist_available: Bell,
-  booking_request: Bell,
-};
 
 // "just now", "5m ago", "3h ago", "2d ago", then the date
 const timeAgo = (iso) => {

@@ -91,7 +91,10 @@ export default defineConfig({
         codeSplitting: {
           groups: [
             { name: 'react', test: /[\\/]node_modules[\\/](react|react-dom|scheduler|react-router|react-router-dom|@remix-run[\\/]router)[\\/]/, priority: 2 },
-            { name: 'supabase', test: /[\\/]node_modules[\\/](@supabase[\\/]|iceberg-js[\\/]|tslib[\\/])/, priority: 1 },
+            // tslib gets its own: Radix's scroll lock uses it too, and inside the Supabase chunk it
+            // would drag all of Supabase into every page that opens a dialog
+            { name: 'tslib', test: /[\\/]node_modules[\\/]tslib[\\/]/, priority: 3 },
+            { name: 'supabase', test: /[\\/]node_modules[\\/](@supabase[\\/]|iceberg-js[\\/])/, priority: 1 },
           ],
         },
       },

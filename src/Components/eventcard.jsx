@@ -12,7 +12,11 @@ const EmbedDialog = lazy(() => import('@/components/EmbedDialog.jsx'));
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const shortDate = (key) => { const [y, m, d] = key.split('-').map(Number); return new Date(y, m - 1, d).toLocaleDateString(undefined, { day: 'numeric', month: 'short' }); };
 
-const ordinal = (n) => `${n}${[, 'st', 'nd', 'rd'][(n % 100 >> 3 ^ 1) && n % 10] || 'th'}`;
+// 1st, 2nd, 3rd, 4th ... 11th, 12th, 13th ... 21st
+const ordinal = (n) => {
+  const teen = Math.floor((n % 100) / 10) === 1;
+  return `${n}${(!teen && ({ 1: 'st', 2: 'nd', 3: 'rd' })[n % 10]) || 'th'}`;
+};
 const unit = (every, one) => (every === 1 ? one : `${every} ${one}s`);
 
 // "Every week", "Every 2 weeks on Mon, Wed until 12 Dec", "Monthly on the 5th", "3 dates"

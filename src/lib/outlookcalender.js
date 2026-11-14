@@ -8,7 +8,7 @@ const formatOutlookDate = (date) => {
   return d.toISOString().split('.')[0] + 'Z';
 };
 
-const buildOutlookDescription = (booking, eventType, host) => {
+const buildOutlookDescription = (booking, eventType) => {
   // email is optional on some events: no empty "Email:" line
   const details = [
     `Guest: ${booking.guest_name || ''}`,

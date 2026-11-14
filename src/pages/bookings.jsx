@@ -313,7 +313,9 @@ function BookingDetail({ booking, initialKind, justChanged, timezone, messageFor
   });
   // the list takes the edits straight away: a reload here would run before the last save does
   const close = () => { if (autosave.state !== 'idle') onChanged({ notes, meeting_url: meetingUrl }); onClose(); };
-  const link = meetingUrl || booking.meeting_url;
+  // only a web address becomes a Join button (never a javascript: or other scheme)
+  const typed = meetingUrl || booking.meeting_url || '';
+  const link = /^https?:\/\//i.test(typed.trim()) ? typed.trim() : '';
 
   return (
     <Dialog open onOpenChange={(next) => { if (!next) close(); }}>
@@ -341,7 +343,7 @@ function BookingDetail({ booking, initialKind, justChanged, timezone, messageFor
           </div>
 
           <div className="grid grid-cols-2 gap-3 text-sm">
-            <InfoRow icon={Mail} label="Email" value={booking.guest_email || 'Not given'} href={booking.guest_email && `mailto:${booking.guest_email}`} />
+            <InfoRow icon={Mail} label="Email" value={booking.guest_email || 'Not given'} href={/^[^\s@?&#]+@[^\s@?&#]+$/.test(booking.guest_email || '') ? `mailto:${booking.guest_email}` : undefined} />
             <InfoRow icon={Phone} label="WhatsApp" value={booking.guest_phone || 'Not given'} href={booking.guest_phone && `tel:${booking.guest_phone}`} />
           </div>
           {booking.guest_notes && (

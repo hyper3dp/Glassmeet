@@ -1,13 +1,12 @@
-import { supabase, supabaseUrl } from '@/lib/supabaseClient';
+import { getSupabase, whenSupabaseLoads, supabaseUrl } from '@/lib/supabaseClient';
 import { appPath } from '@/lib/authReturnTo';
-
-const TOKEN_KEY = 'glassmeet_session';
 
 // crypto.randomUUID is missing on iOS Safari before 15.4; fall back to getRandomValues
 const uuid = () => (crypto.randomUUID ? crypto.randomUUID() : '10000000-1000-4000-8000-100000000000'.replace(/[018]/g, (c) =>
   (c ^ (crypto.getRandomValues(new Uint8Array(1))[0] & (15 >> (c / 4)))).toString(16)));
 
 async function getProfile(userId) {
+  const supabase = await getSupabase();
   const { data, error } = await supabase
     .from('profiles')
     .select('*')
@@ -40,6 +39,7 @@ let outlookBusyMissing = false; // same for the connections function
 const googleError = (code, message) => Object.assign(new Error(message), { code });
 // Calls the connections edge function (Outlook, Teams); same errors as invokeGoogle below
 async function invokeConnections(body) {
+  const supabase = await getSupabase();
   const { data, error } = await supabase.functions.invoke('connections', { body });
   if (!error) return data;
   const response = error.context;
@@ -52,6 +52,7 @@ async function invokeConnections(body) {
 // Calls the google-calendar edge function; a failure throws an Error with the function's `code`.
 // A function that isn't deployed (or can't be reached) is code 'unavailable'.
 async function invokeGoogle(body) {
+  const supabase = await getSupabase();
   const { data, error } = await supabase.functions.invoke('google-calendar', { body });
   if (!error) return data;
   const response = error.context;
@@ -62,10 +63,10 @@ async function invokeGoogle(body) {
   throw googleError(detail?.error || 'error', detail?.message || error.message || 'Google Calendar didn’t respond.');
 }
 let meCache = null;
-const sessionUser = async () => (await supabase.auth.getSession()).data.session?.user || null;
+const sessionUser = async () => (await (await getSupabase()).auth.getSession()).data.session?.user || null;
 // SIGNED_IN also fires when a tab regains focus; the cache is keyed by user id, so another user
 // signing in misses it anyway, and only signing out (or a changed login) needs to clear it
-supabase.auth.onAuthStateChange((event) => { if (event === 'SIGNED_OUT' || event === 'USER_UPDATED') meCache = null; });
+whenSupabaseLoads((supabase) => supabase.auth.onAuthStateChange((event) => { if (event === 'SIGNED_OUT' || event === 'USER_UPDATED') meCache = null; }));
 
 const entities = new Proxy({}, {
   get: (_target, entityName) => {
@@ -87,6 +88,7 @@ const entities = new Proxy({}, {
     if (entityName === 'BookedSlot') {
       return {
         filter: async ({ host_id: host, status } = {}) => {
+          const supabase = await getSupabase();
           const from = new Date(Date.now() - 86400000).toISOString();
           const to = new Date(Date.now() + 800 * 86400000).toISOString();
           const { data, error } = await supabase.rpc('busy_times', { p_host: host, p_from: from, p_to: to });
@@ -101,6 +103,7 @@ const entities = new Proxy({}, {
     return {
       // columns: a select list ('id, start_time, ...') when a page needs only a few fields
       filter: async (where = {}, sort, limit, columns = '*') => {
+        const supabase = await getSupabase();
         let query = supabase.from(table).select(columns);
         
         // Simple filter mapping: a value matches exactly, an array is "one of", and
@@ -127,27 +130,32 @@ const entities = new Proxy({}, {
         return data;
       },
       get: async (id) => {
+        const supabase = await getSupabase();
         const { data, error } = await supabase.from(table).select('*').eq('id', id).single();
         if (error) throw new Error(error.message);
         return data;
       },
       create: async (value) => {
+        const supabase = await getSupabase();
         const { data, error } = await writeSkippingMissingColumns((row) => supabase.from(table).insert([row]).select().single(), value);
         if (error) throw new Error(error.message);
         return data;
       },
       bulkCreate: async (values) => {
+        const supabase = await getSupabase();
         const { data, error } = await supabase.from(table).insert(values).select();
         if (error) throw new Error(error.message);
         return data;
       },
       update: async (id, value) => {
+        const supabase = await getSupabase();
         // a row deleted in the meantime updates nothing; that's not an error
         const { data, error } = await writeSkippingMissingColumns((row) => supabase.from(table).update(row).eq('id', id).select(), value);
         if (error) throw new Error(error.message);
         return data?.[0] ?? null;
       },
       bulkUpdate: async (values) => {
+        const supabase = await getSupabase();
         // Supabase can't give each id its own values in one call, so rows that get the same
         // change (e.g. "mark all read") share one update, and the groups run side by side
         const groups = new Map();
@@ -165,6 +173,7 @@ const entities = new Proxy({}, {
         return results.flat();
       },
       delete: async (id) => {
+        const supabase = await getSupabase();
         const { error } = await supabase.from(table).delete().eq('id', id);
         if (error) throw new Error(error.message);
         return { success: true };
@@ -198,6 +207,7 @@ export const api = {
         const profile = await getProfile(user.id);
         // older profiles were created without a name; show the Google name or email instead of "?"
         if (profile) return { ...profile, full_name: profile.full_name || user.user_metadata?.full_name || user.user_metadata?.name || user.email?.split('@')[0] || '' };
+        const supabase = await getSupabase();
         const { data: newProfile, error: createError } = await supabase
           .from('profiles')
           .insert([{
@@ -220,6 +230,7 @@ export const api = {
       return promise;
     },
     updateMe: async (value) => {
+      const supabase = await getSupabase();
       const user = await sessionUser();
       const { data, error } = await writeSkippingMissingColumns((row) => supabase.from('profiles').update(row).eq('id', user.id).select().single(), value);
       if (error) throw new Error(error.message);
@@ -229,6 +240,7 @@ export const api = {
     // First-run working hours: flips profiles.hours_seeded from false to true and says whether
     // this call did it, so only one tab (or effect run) ever seeds the default hours.
     claimHoursSeeding: async () => {
+      const supabase = await getSupabase();
       const user = await sessionUser();
       const { data, error } = await supabase.from('profiles').update({ hours_seeded: true })
         .eq('id', user.id).eq('hours_seeded', false).select();
@@ -237,6 +249,7 @@ export const api = {
       return data.length > 0;
     },
     loginViaEmailPassword: async (email, password) => {
+      const supabase = await getSupabase();
       const { data, error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) {
         const err = new Error(error.code === 'email_not_confirmed' ? 'Confirm your email before logging in. Check your inbox (and spam) for the code.' : error.message);
@@ -247,6 +260,7 @@ export const api = {
       return { user: await getProfile(data.user.id).catch(() => null), access_token: data.session.access_token };
     },
     register: async (value) => {
+      const supabase = await getSupabase();
       // The confirmation link returns to the page the user was heading for (the app root by
       // default, a page GitHub Pages always serves), which signs them in from the link.
       const { data, error } = await supabase.auth.signUp({
@@ -273,6 +287,7 @@ export const api = {
       return { user: await getProfile(data.user.id).catch(() => null), access_token: data.session.access_token };
     },
     resendSignup: async (email, returnTo = '/') => {
+      const supabase = await getSupabase();
       const { error } = await supabase.auth.resend({
         type: 'signup',
         email,
@@ -282,6 +297,7 @@ export const api = {
     },
     // LinkedIn's "Sign In with LinkedIn using OpenID Connect" provider in Supabase
     loginWithLinkedIn: async (returnTo = '/') => {
+      const supabase = await getSupabase();
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'linkedin_oidc',
         options: { redirectTo: `${window.location.origin}${appPath(returnTo)}` }
@@ -290,6 +306,7 @@ export const api = {
       if (data?.url) window.location.assign(data.url);
     },
     loginWithGoogle: async (returnTo = '/') => {
+      const supabase = await getSupabase();
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: { redirectTo: `${window.location.origin}${appPath(returnTo)}` }
@@ -300,6 +317,7 @@ export const api = {
     // the emailed code: 'signup' confirms a new account, 'recovery' signs in to set a new password.
     // Either way the person is signed in afterwards.
     verifyOtp: async ({ email, token, type = 'signup' }) => {
+      const supabase = await getSupabase();
       const { data, error } = await supabase.auth.verifyOtp({ email: email.trim(), token, type });
       if (error) {
         const err = new Error(/expired|invalid/i.test(error.message) ? 'That code is wrong or has expired. Check the latest email, or send a new code.' : error.message);
@@ -309,6 +327,7 @@ export const api = {
       return { user: data.user, session: data.session };
     },
     logout: async () => {
+      const supabase = await getSupabase();
       // signOut reports a failure (e.g. offline) instead of throwing; then at least end the
       // session on this device, so the login page doesn't find it still signed in
       const { error } = await supabase.auth.signOut();
@@ -320,6 +339,7 @@ export const api = {
     // last so a failed delete never leaves a live account with broken pictures; the session's
     // token still works for Storage until this device signs out.
     deleteAccount: async () => {
+      const supabase = await getSupabase();
       const user = await sessionUser();
       if (!user) throw new Error('Sign in first.');
       await invokeGoogle({ action: 'disconnect' }).catch(() => {});
@@ -338,6 +358,7 @@ export const api = {
       await supabase.auth.signOut({ scope: 'local' }).catch(() => {});
     },
     resetPasswordRequest: async (email) => {
+      const supabase = await getSupabase();
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
         redirectTo: `${window.location.origin}${appPath('/reset-password')}`,
       });
@@ -345,22 +366,36 @@ export const api = {
       return { success: true };
     },
     resetPassword: async (value) => {
+      const supabase = await getSupabase();
       const { error } = await supabase.auth.updateUser({ password: value.newPassword });
       if (error) throw new Error(error.message);
       return { success: true };
     },
     hasSession: async () => {
+      const supabase = await getSupabase();
       const { data: { session } } = await supabase.auth.getSession();
       return Boolean(session);
     },
-    // same shape as supabase-js: { data: { subscription } }
-    onAuthStateChange: (callback) => supabase.auth.onAuthStateChange((event, session) => callback(event, session)),
+    // Same shape as supabase-js: { data: { subscription } }. Listens from whenever Supabase loads,
+    // without loading it: a visit that may be signed in loads it at startup (Authcontext), a
+    // signed-out one when a page first needs it (e.g. Log in), which then fires INITIAL_SESSION.
+    onAuthStateChange: (callback) => {
+      let stopped = false;
+      let subscription = null;
+      const cancel = whenSupabaseLoads((supabase) => {
+        if (!stopped) subscription = supabase.auth.onAuthStateChange((event, session) => callback(event, session)).data.subscription;
+      });
+      return { data: { subscription: { unsubscribe: () => { stopped = true; cancel(); subscription?.unsubscribe(); } } } };
+    },
+    // starts loading Supabase (and the session check with it) without waiting for it
+    load: () => getSupabase().then(() => true, () => false),
   },
   // Google Calendar: the connection row is read directly (RLS: own row only); everything that
   // needs Google goes through the google-calendar edge function. Errors carry a `code`
   // ('not_configured', 'unavailable', 'not_connected', 'reconnect', ...).
   google: {
     status: async () => {
+      const supabase = await getSupabase();
       const user = await sessionUser();
       if (!user) return { connected: false };
       const { data, error } = await supabase.from('google_accounts')
@@ -404,6 +439,7 @@ export const api = {
   connections: {
     // { microsoft: {...} }, with only the ones the host has connected or must reconnect
     list: async () => {
+      const supabase = await getSupabase();
       const user = await sessionUser();
       if (!user) return {};
       const { data, error } = await supabase.from('connections')
@@ -438,6 +474,7 @@ export const api = {
   // Profile photo: uploads to the public avatars bucket under the user's own folder
   storage: {
     uploadAvatar: async (file) => {
+      const supabase = await getSupabase();
       const user = await sessionUser();
       const ext = (file.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '');
       const path = `${user.id}/avatar-${Date.now()}.${ext}`;
@@ -457,6 +494,7 @@ export const api = {
   // Public booking pages: an active event's public fields (no meeting link or host email).
   events: {
     getPublic: async (id) => {
+      const supabase = await getSupabase();
       const { data, error } = await supabase.rpc('public_event_type', { p_id: id });
       const event = notDeployed(error) ? await entities.EventType.get(id) : data;
       if (error && !notDeployed(error)) throw new Error(error.message);
@@ -469,6 +507,7 @@ export const api = {
     // the host's connected calendars and meeting apps follow a new or changed booking; never fails
     pushToCalendars: (id) => Promise.all([api.google.pushBooking(id), api.connections.pushBooking(id)]),
     createAsGuest: async (value) => {
+      const supabase = await getSupabase();
       const row = { id: uuid(), ...value };
       const { error } = await supabase.from('bookings').insert([row]);
       if (error) throw new Error(error.message);
@@ -476,6 +515,7 @@ export const api = {
     },
     // the meeting link for a booking the guest just made (null while it waits for approval)
     meetingLink: async (id) => {
+      const supabase = await getSupabase();
       const { data, error } = await supabase.rpc('booking_meeting_link', { p_booking: id });
       if (error) return undefined; // older database: the page already has the link
       return data || null;
@@ -485,6 +525,7 @@ export const api = {
   // read the tables as before.
   availability: {
     forHost: async (hostId) => {
+      const supabase = await getSupabase();
       const { data, error } = await supabase.rpc('host_availability', { p_host: hostId });
       if (notDeployed(error)) {
         const [rules, exceptions] = await Promise.all([
@@ -500,6 +541,7 @@ export const api = {
   // Public holidays a host blocks (profiles.holidays). Until the migration is applied, none.
   holidays: {
     forRegion: async (region) => {
+      const supabase = await getSupabase();
       if (!region) return [];
       const { data, error } = await supabase.from('holidays').select('date, name').eq('region', region).order('date');
       if (notDeployed(error) || error?.code === 'PGRST205') return [];
@@ -508,6 +550,7 @@ export const api = {
     },
     // booking pages: the host's holidays, without reading their profile
     forHost: async (hostId) => {
+      const supabase = await getSupabase();
       const { data, error } = await supabase.rpc('host_holidays', { p_host: hostId });
       if (notDeployed(error)) return [];
       if (error) throw new Error(error.message);
@@ -518,6 +561,7 @@ export const api = {
   calendarFeed: {
     urlFor: (token) => `${supabaseUrl}/functions/v1/calendar-feed/${token}.ics`,
     mine: async () => {
+      const supabase = await getSupabase();
       const user = await sessionUser();
       const read = () => supabase.from('cal_feeds').select('token').eq('owner', user.id).maybeSingle();
       const { data, error } = await read();
@@ -536,6 +580,7 @@ export const api = {
     // New token; calendars subscribed to the old link stop updating
     // the server makes the new token (rotate_cal_feed); older databases took it from here
     rotate: async () => {
+      const supabase = await getSupabase();
       const { data, error } = await supabase.rpc('rotate_cal_feed');
       if (!error) return data;
       if (!notDeployed(error)) throw new Error(error.message);

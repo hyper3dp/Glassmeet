@@ -16,6 +16,13 @@ export const icsText = (value) => String(value ?? '')
 // eslint-disable-next-line no-control-regex
 export const icsParam = (value) => `"${String(value ?? '').replace(/["\x00-\x1f\x7f]/g, '')}"`;
 
+// mailto: values: a plain address or nothing. No spaces, line breaks, quotes, angle brackets,
+// ; , or : (which would end the value or start a new parameter or line).
+export const icsEmail = (value) => {
+  const email = String(value ?? '').trim();
+  return /^[^\s@"<>;,:\\]+@[^\s@"<>;,:\\]+\.[^\s@"<>;,:\\]+$/.test(email) ? email : '';
+};
+
 const encoder = new TextEncoder();
 
 // Lines longer than 75 octets (UTF-8 bytes, not characters) fold with CRLF + space, never

@@ -264,7 +264,7 @@ export default function Landing() {
                 Send people one link. They pick a time without making an account, and you confirm it in a WhatsApp chat.
               </p>
               <div className="mt-8 flex max-w-[30rem] flex-col gap-3 sm:flex-row">
-                <GlassButton type="button" variant="primary" size="lg" onClick={signUpWithGoogle} className="h-12 w-full px-6 text-base sm:w-auto">
+                <GlassButton type="button" variant="primary" size="lg" onClick={signUpWithGoogle} onPointerEnter={api.auth.load} onFocus={api.auth.load} className="h-12 w-full px-6 text-base sm:w-auto">
                   <span className="flex h-6 w-6 items-center justify-center rounded-full bg-white"><GoogleIcon className="h-4 w-4" /></span>
                   Sign up with Google
                 </GlassButton>

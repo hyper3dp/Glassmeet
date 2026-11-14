@@ -15,7 +15,7 @@ const REGION = 'ae';
 const KEPT_KEY = 'gm-holiday-kept'; // bookings the host chose to keep (this browser)
 
 const readKept = () => { try { return new Set(JSON.parse(localStorage.getItem(KEPT_KEY) || '[]')); } catch { return new Set(); } };
-const saveKept = (set) => { try { localStorage.setItem(KEPT_KEY, JSON.stringify([...set])); } catch {} };
+const saveKept = (set) => { try { localStorage.setItem(KEPT_KEY, JSON.stringify([...set])); } catch { /* storage unavailable */ } };
 const dayLabel = (date) => new Date(`${date}T00:00`).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
 
 // Availability: block the host's public holidays with one switch. Bookings already on a holiday

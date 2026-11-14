@@ -73,12 +73,11 @@ const SELECT_CHEVRON = `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
 const finePointer = () => typeof window !== 'undefined' && !!window.matchMedia?.('(pointer: fine)').matches;
 
 // The menu (./selectmenu.jsx, with Radix Popover) is its own chunk so phones never download it.
-// Mouse-and-keyboard browsers fetch it as soon as this module loads; the native select, styled
-// the same, stands in for the moment before it arrives.
+// Mouse-and-keyboard browsers fetch it when a page first shows a select (pages without one, like
+// the landing page, never load it); the native select, styled the same, stands in until then.
 let SelectMenu = null;
 let menuLoad = null;
 const loadSelectMenu = () => (menuLoad ??= import('./selectmenu.jsx').then((m) => (SelectMenu = m.default)));
-if (finePointer()) loadSelectMenu().catch(() => { menuLoad = null; });
 
 export function GlassSelect(props) {
   const [menu] = useState(finePointer);

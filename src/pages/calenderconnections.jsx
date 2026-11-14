@@ -14,7 +14,6 @@ import { downloadIcs } from '@/lib/calendar';
 import { downloadICSFeed } from '@/lib/calendarFeed';
 import OutlookIcon from '@/components/outlookicon.jsx';
 import AppleIcon from '@/components/appleicon.jsx';
-import { getCalendarPriority } from '@/lib/devicedetect.js';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 
 const SAMPLE_BOOKING = {
@@ -45,7 +44,7 @@ const CONNECT_RETURN_ERRORS = {
 };
 
 export default function CalendarConnections() {
-  const { profile, updateProfile } = useApp();
+  const { profile } = useApp();
   const [searchParams, setSearchParams] = useSearchParams();
   const [showGoogleSetup, setShowGoogleSetup] = useState(false);
   const [googleAccount, setGoogleAccount] = useState({ connected: false });
@@ -102,8 +101,6 @@ export default function CalendarConnections() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Device-aware calendar ordering
-  const calendarPriority = getCalendarPriority();
 
   const refreshGoogle = async () => {
     try {
@@ -166,10 +163,6 @@ export default function CalendarConnections() {
     }
   };
 
-  // a failed save says so instead of failing silently
-  const attempt = (work, failMessage) => async (...args) => {
-    try { await work(...args); } catch (error) { toast.error(`${failMessage} ${error?.message || ''}`.trim()); }
-  };
 
   const handleDisconnectGoogle = async () => {
     if (!confirm('Disconnect Google Calendar? Busy times in Google stop hiding slots and new bookings stop being added. Events already in Google stay there.')) return;

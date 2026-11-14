@@ -48,11 +48,18 @@ const PUBLIC_ROUTES = {
   '/privacy': 'privacy',
 };
 
+import { getSupabase } from '@/lib/supabaseClient';
+
 const ignore = () => {}; // a failed preload retries when the page renders
+
+// pages that work without Supabase for a signed-out visitor (it loads once they need it)
+const STATIC_PAGES = new Set(['/', '/terms', '/privacy']);
 
 // Starts downloading the page for this address (path inside the app, without the base)
 export function preloadPage(path) {
   const clean = path.replace(/\/+$/, '') || '/';
+  // every other page reads data or signs in: fetch Supabase alongside the page itself
+  if (!STATIC_PAGES.has(clean)) getSupabase().catch(ignore);
   if (APP_ROUTES[clean]) {
     PAGES.appShell().catch(ignore);
     PAGES[APP_ROUTES[clean]]().catch(ignore);

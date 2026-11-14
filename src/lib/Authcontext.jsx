@@ -1,6 +1,7 @@
 import React, { createContext, useState, useContext, useEffect, useCallback, useRef, useMemo } from 'react';
 import { api } from '@/lib/localApi';
 import { appPath, markRecovery } from '@/lib/authReturnTo';
+import { maySignIn, SESSION_KEY } from '@/lib/supabaseClient';
 
 const AuthContext = createContext();
 
@@ -17,10 +18,13 @@ const withTimeout = (promise) => new Promise((resolve, reject) => {
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [isLoadingAuth, setIsLoadingAuth] = useState(true);
+  // No stored session and no sign-in link in the address: signed out for certain, so pages render
+  // at once and Supabase only loads when one needs it (see lib/supabaseClient.js)
+  const [signedOutAtStart] = useState(() => !maySignIn());
+  const [isLoadingAuth, setIsLoadingAuth] = useState(!signedOutAtStart);
   const [isLoadingPublicSettings, setIsLoadingPublicSettings] = useState(true);
   const [authError, setAuthError] = useState(null);
-  const [authChecked, setAuthChecked] = useState(false);
+  const [authChecked, setAuthChecked] = useState(signedOutAtStart);
   const [appPublicSettings, setAppPublicSettings] = useState(null);
   const userId = useRef(null);
   // the user a running check is loading, so the same user's repeat events don't start another
@@ -124,12 +128,28 @@ export const AuthProvider = ({ children }) => {
 
     const unsubscribe = subscriptionResult?.data?.subscription?.unsubscribe || subscriptionResult?.unsubscribe;
 
+    // a visit that may be signed in loads Supabase now; its INITIAL_SESSION event above then
+    // settles the check. If it can't load (offline), treat the visit as signed out.
+    let alive = true;
+    if (!signedOutAtStart) {
+      api.auth.load().then((ok) => {
+        if (ok || !alive) return;
+        setIsLoadingAuth(false);
+        setAuthChecked(true);
+      });
+    }
+    // signing in on another tab writes the session: load Supabase so this tab follows
+    const onStorage = (e) => { if (e.key === SESSION_KEY && e.newValue) api.auth.load(); };
+    window.addEventListener('storage', onStorage);
+
     return () => {
+      alive = false;
+      window.removeEventListener('storage', onStorage);
       if (typeof unsubscribe === 'function') {
         unsubscribe();
       }
     };
-  }, [checkUserAuth]);
+  }, [checkUserAuth, signedOutAtStart]);
 
   const logout = useCallback(async (shouldRedirect = true) => {
     try {
