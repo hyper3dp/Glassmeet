@@ -70,10 +70,17 @@ const redirect = (location: string) => new Response(null, {
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-// only a plain path inside the app: no scheme, no host, no "//", no backslash
+// The native apps (mobile/) finish connecting in the app: this one exact address opens them.
+const NATIVE_RETURN = 'glassmeet://calendar-connections';
+
+// only a plain path inside the app (no scheme, no host, no "//", no backslash), or the native apps' address
 const safeReturn = (value: unknown) =>
-  typeof value === 'string' && value.length <= 200 && /^\/[A-Za-z0-9\-_/]*$/.test(value) && !value.startsWith('//')
-    ? value : DEFAULT_RETURN;
+  value === NATIVE_RETURN ? value
+    : typeof value === 'string' && value.length <= 200 && /^\/[A-Za-z0-9\-_/]*$/.test(value) && !value.startsWith('//')
+      ? value : DEFAULT_RETURN;
+
+// where the provider's callback sends the browser back to
+const returnUrl = (r: string | undefined) => (r === NATIVE_RETURN ? NATIVE_RETURN : `${APP_URL}${r ?? DEFAULT_RETURN}`);
 
 // ── signed OAuth state ───────────────────────────────────────────────────────
 const enc = new TextEncoder();
@@ -648,7 +655,7 @@ Deno.serve(async (req) => {
     if (req.method !== 'GET') return new Response('Method not allowed', { status: 405 });
     const rawState = url.searchParams.get('state');
     const state = await readState(rawState);
-    const back = (params: Record<string, string>) => redirect(`${APP_URL}${state?.r ?? DEFAULT_RETURN}?${new URLSearchParams(params)}`);
+    const back = (params: Record<string, string>) => redirect(`${returnUrl(state?.r)}?${new URLSearchParams(params)}`);
     if (!state) return back({ connect: 'error', reason: 'state' });
     const error = url.searchParams.get('error');
     if (error) return back({ connect: 'error', provider: state.p, reason: error === 'access_denied' ? 'denied' : 'provider' });
