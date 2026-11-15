@@ -21,7 +21,10 @@ On a Mac you can also run `brew install xcodegen && cd mobile/ios && xcodegen ge
 
 ## Cloud phones (Appetize)
 
-Add an Appetize API token as the repository secret `APPETIZE_API_TOKEN`. Each build then uploads to Appetize and the run summary links the cloud iPhone and Android phone. After the first upload, save the printed public keys as the repository variables `APPETIZE_IOS_KEY` and `APPETIZE_ANDROID_KEY`, so later builds update the same apps instead of creating new ones.
+Add an Appetize API token as the repository secret `APPETIZE_API_TOKEN` (`APPITIZE_API` also works). Each build then uploads to Appetize and the run summary links the cloud iPhone and Android phone. Builds update the same two Appetize apps (their public keys are set in the workflow; the repository variables `APPETIZE_IOS_KEY` and `APPETIZE_ANDROID_KEY` override them):
+
+- Cloud iPhone: https://appetize.io/app/4b3x6akp4arpb3xmgvmidck7my
+- Cloud Android phone: https://appetize.io/app/5wtmxqfkukoh2kkicaev2z72sa
 
 ## App icons
 

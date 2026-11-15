@@ -67,7 +67,7 @@ jobs:
       - name: Upload to Appetize (cloud iPhone)
         env:
           APPETIZE_API_TOKEN: ${{ secrets.APPETIZE_API_TOKEN || secrets.APPITIZE_API }}
-          APPETIZE_KEY: ${{ vars.APPETIZE_IOS_KEY }}
+          APPETIZE_KEY: ${{ vars.APPETIZE_IOS_KEY || '4b3x6akp4arpb3xmgvmidck7my' }}
         run: |
           if [ -z "$APPETIZE_API_TOKEN" ]; then echo "::notice title=Appetize::No Appetize token secret; upload skipped."; exit 0; fi
           url="https://api.appetize.io/v1/apps${APPETIZE_KEY:+/$APPETIZE_KEY}"
@@ -115,7 +115,7 @@ jobs:
       - name: Upload to Appetize (cloud Android phone)
         env:
           APPETIZE_API_TOKEN: ${{ secrets.APPETIZE_API_TOKEN || secrets.APPITIZE_API }}
-          APPETIZE_KEY: ${{ vars.APPETIZE_ANDROID_KEY }}
+          APPETIZE_KEY: ${{ vars.APPETIZE_ANDROID_KEY || '5wtmxqfkukoh2kkicaev2z72sa' }}
         run: |
           if [ -z "$APPETIZE_API_TOKEN" ]; then echo "::notice title=Appetize::No Appetize token secret; upload skipped."; exit 0; fi
           url="https://api.appetize.io/v1/apps${APPETIZE_KEY:+/$APPETIZE_KEY}"
