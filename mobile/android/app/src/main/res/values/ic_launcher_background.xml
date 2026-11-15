@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- sampled from the left edge of the v2 (dark) icon art -->
+    <color name="ic_launcher_background">#1D7DA9</color>
+</resources>

@@ -1,0 +1,216 @@
+package com.hyper3dp.glassmeet.ui.navigation
+
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.consumeWindowInsets
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Groups
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Link
+import androidx.compose.material.icons.filled.Schedule
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.outlined.Groups
+import androidx.compose.material.icons.outlined.Home
+import androidx.compose.material.icons.outlined.Link
+import androidx.compose.material.icons.outlined.Schedule
+import androidx.compose.material.icons.outlined.Settings
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.navigation.NavDestination
+import androidx.navigation.NavDestination.Companion.hasRoute
+import androidx.navigation.NavDestination.Companion.hierarchy
+import androidx.navigation.NavGraph.Companion.findStartDestination
+import androidx.navigation.NavHostController
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.currentBackStackEntryAsState
+import androidx.navigation.compose.navigation
+import androidx.navigation.compose.rememberNavController
+import androidx.navigation.toRoute
+import com.hyper3dp.glassmeet.data.AuthRepository
+import com.hyper3dp.glassmeet.data.ProfileRepository
+import com.hyper3dp.glassmeet.ui.analytics.AnalyticsScreen
+import com.hyper3dp.glassmeet.ui.auth.AuthFlow
+import com.hyper3dp.glassmeet.ui.auth.CreateAccountScreen
+import com.hyper3dp.glassmeet.ui.auth.ResetPasswordScreen
+import com.hyper3dp.glassmeet.ui.auth.SignInScreen
+import com.hyper3dp.glassmeet.ui.auth.VerifyCodeScreen
+import com.hyper3dp.glassmeet.ui.availability.AvailabilityScreen
+import com.hyper3dp.glassmeet.ui.calendar.CalendarConnectionsScreen
+import com.hyper3dp.glassmeet.ui.home.HomeScreen
+import com.hyper3dp.glassmeet.ui.meetings.MeetingScreen
+import com.hyper3dp.glassmeet.ui.meetings.MeetingsScreen
+import com.hyper3dp.glassmeet.ui.scheduling.EventTypeFormScreen
+import com.hyper3dp.glassmeet.ui.scheduling.SchedulingScreen
+import com.hyper3dp.glassmeet.ui.settings.SettingsScreen
+import com.hyper3dp.glassmeet.ui.settings.WhatsAppScreen
+import com.hyper3dp.glassmeet.util.Snack
+import io.github.jan.supabase.auth.status.SessionStatus
+
+@Composable
+fun GlassMeetApp() {
+    val status by AuthRepository.sessionStatus.collectAsStateWithLifecycle()
+    val recovering by AuthFlow.recovering.collectAsStateWithLifecycle()
+    val signedIn = status is SessionStatus.Authenticated || status is SessionStatus.RefreshFailure
+    when {
+        status is SessionStatus.Initializing -> Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background))
+        signedIn && !recovering -> SignedInApp()
+        else -> SignedOutApp(startOnReset = recovering)
+    }
+}
+
+// ── Signed out: Sign in, Create account, Verify code, Reset password ──
+
+@Composable
+private fun SignedOutApp(startOnReset: Boolean) {
+    val nav = rememberNavController()
+    NavHost(nav, startDestination = if (startOnReset) ResetPasswordRoute else SignInRoute) {
+        composable<SignInRoute> {
+            SignInScreen(
+                onCreateAccount = { nav.navigate(CreateAccountRoute) },
+                onForgotPassword = { nav.navigate(ResetPasswordRoute) },
+                onVerify = { email -> nav.navigate(VerifyCodeRoute(email)) },
+            )
+        }
+        composable<CreateAccountRoute> {
+            CreateAccountScreen(onBack = { nav.popBackStack() }, onVerify = { email -> nav.navigate(VerifyCodeRoute(email)) })
+        }
+        composable<VerifyCodeRoute> { entry ->
+            VerifyCodeScreen(email = entry.toRoute<VerifyCodeRoute>().email, onBack = { nav.popBackStack() })
+        }
+        composable<ResetPasswordRoute> {
+            ResetPasswordScreen(onBack = { if (!nav.popBackStack()) nav.navigate(SignInRoute) })
+        }
+    }
+}
+
+// ── Signed in: five destinations in a Material 3 navigation bar ──
+
+private data class Tab(
+    val label: String,
+    val icon: ImageVector,
+    val selectedIcon: ImageVector,
+    val graph: Any,
+    val start: Any,
+    val matches: (NavDestination) -> Boolean,
+)
+
+private val tabs = listOf(
+    Tab("Home", Icons.Outlined.Home, Icons.Filled.Home, HomeGraph, HomeRoute) { it.hasRoute<HomeGraph>() },
+    Tab("Meetings", Icons.Outlined.Groups, Icons.Filled.Groups, MeetingsGraph, MeetingsRoute) { it.hasRoute<MeetingsGraph>() },
+    Tab("Scheduling", Icons.Outlined.Link, Icons.Filled.Link, SchedulingGraph, SchedulingRoute) { it.hasRoute<SchedulingGraph>() },
+    Tab("Availability", Icons.Outlined.Schedule, Icons.Filled.Schedule, AvailabilityGraph, AvailabilityRoute) { it.hasRoute<AvailabilityGraph>() },
+    Tab("Settings", Icons.Outlined.Settings, Icons.Filled.Settings, SettingsGraph, SettingsRoute) { it.hasRoute<SettingsGraph>() },
+)
+
+private fun NavHostController.switchTo(route: Any) = navigate(route) {
+    popUpTo(graph.findStartDestination().id) { saveState = true }
+    launchSingleTop = true
+    restoreState = true
+}
+
+@Composable
+private fun SignedInApp() {
+    val nav = rememberNavController()
+    val entry by nav.currentBackStackEntryAsState()
+    val destination = entry?.destination
+    val snackbar = remember { SnackbarHostState() }
+
+    LaunchedEffect(Unit) { runCatching { ProfileRepository.load() } }
+    LaunchedEffect(Unit) { Snack.messages.collect { snackbar.showSnackbar(it) } }
+
+    // a calendar connection came back from the browser: open its page, which finishes it
+    val calendarCallback by NavRequests.calendarCallback.collectAsStateWithLifecycle()
+    LaunchedEffect(calendarCallback) {
+        if (calendarCallback != null && destination?.hasRoute<CalendarConnectionsRoute>() != true) {
+            nav.switchTo(SettingsGraph)
+            nav.navigate(CalendarConnectionsRoute) { launchSingleTop = true }
+        }
+    }
+
+    Scaffold(
+        containerColor = MaterialTheme.colorScheme.background,
+        snackbarHost = { SnackbarHost(snackbar) },
+        bottomBar = {
+            NavigationBar {
+                tabs.forEach { tab ->
+                    val selected = destination?.hierarchy?.any { tab.matches(it) } == true
+                    NavigationBarItem(
+                        selected = selected,
+                        onClick = {
+                            // tapping the current tab again goes back to its first page
+                            if (selected) nav.popBackStack(tab.start, inclusive = false).let { if (!it) nav.switchTo(tab.graph) }
+                            else nav.switchTo(tab.graph)
+                        },
+                        icon = { Icon(if (selected) tab.selectedIcon else tab.icon, contentDescription = null) },
+                        label = { Text(tab.label, maxLines = 1) },
+                    )
+                }
+            }
+        },
+    ) { padding ->
+        NavHost(
+            navController = nav,
+            startDestination = HomeGraph,
+            modifier = Modifier.padding(bottom = padding.calculateBottomPadding()).consumeWindowInsets(padding),
+        ) {
+            navigation<HomeGraph>(startDestination = HomeRoute) {
+                composable<HomeRoute> {
+                    HomeScreen(
+                        onOpenMeeting = { id -> nav.navigate(HomeMeetingRoute(id)) },
+                        onOpenRequests = {
+                            NavRequests.meetingsFilter.value = "pending"
+                            nav.switchTo(MeetingsGraph)
+                        },
+                        onOpenMeetings = { nav.switchTo(MeetingsGraph) },
+                        onOpenAnalytics = { nav.navigate(AnalyticsRoute) },
+                        onOpenScheduling = { nav.switchTo(SchedulingGraph) },
+                    )
+                }
+                composable<AnalyticsRoute> { AnalyticsScreen(onBack = { nav.popBackStack() }) }
+                composable<HomeMeetingRoute> { e -> MeetingScreen(id = e.toRoute<HomeMeetingRoute>().id, onBack = { nav.popBackStack() }) }
+            }
+            navigation<MeetingsGraph>(startDestination = MeetingsRoute) {
+                composable<MeetingsRoute> { MeetingsScreen(onOpenMeeting = { id -> nav.navigate(MeetingRoute(id)) }) }
+                composable<MeetingRoute> { e -> MeetingScreen(id = e.toRoute<MeetingRoute>().id, onBack = { nav.popBackStack() }) }
+            }
+            navigation<SchedulingGraph>(startDestination = SchedulingRoute) {
+                composable<SchedulingRoute> {
+                    SchedulingScreen(
+                        onEdit = { id -> nav.navigate(EventTypeFormRoute(id)) },
+                        onNew = { nav.navigate(EventTypeFormRoute(null)) },
+                    )
+                }
+                composable<EventTypeFormRoute> { e -> EventTypeFormScreen(id = e.toRoute<EventTypeFormRoute>().id, onBack = { nav.popBackStack() }) }
+            }
+            navigation<AvailabilityGraph>(startDestination = AvailabilityRoute) {
+                composable<AvailabilityRoute> { AvailabilityScreen() }
+            }
+            navigation<SettingsGraph>(startDestination = SettingsRoute) {
+                composable<SettingsRoute> {
+                    SettingsScreen(
+                        onOpenWhatsApp = { nav.navigate(WhatsAppRoute) },
+                        onOpenCalendars = { nav.navigate(CalendarConnectionsRoute) },
+                    )
+                }
+                composable<WhatsAppRoute> { WhatsAppScreen(onBack = { nav.popBackStack() }) }
+                composable<CalendarConnectionsRoute> { CalendarConnectionsScreen(onBack = { nav.popBackStack() }) }
+            }
+        }
+    }
+}
