@@ -3,6 +3,10 @@ name: Deploy GlassMeet to GitHub Pages
 on:
   push:
     branches: [main]
+    # the native apps in mobile/ have their own workflow (mobile-apps.yml)
+    paths-ignore:
+      - 'mobile/**'
+      - '.github/workflows/mobile-apps.yml'
   workflow_dispatch:
 
 permissions:

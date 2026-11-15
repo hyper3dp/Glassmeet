@@ -1,0 +1,28 @@
+# GlassMeet mobile apps
+
+Two native host apps that use the same Supabase project as the web app. Guests still book on the web.
+
+| Folder | Platform | Built with |
+|---|---|---|
+| `ios/` | iPhone, iOS 26+ | SwiftUI, system tab bar and Liquid Glass, [supabase-swift](https://github.com/supabase/supabase-swift) |
+| `android/` | Android 8+ (API 26) | Kotlin, Jetpack Compose, Material 3, [supabase-kt](https://github.com/supabase-community/supabase-kt) |
+
+Screens in both: sign in, Home, Meetings (and a meeting's page), Scheduling (and the event type form), working hours, Settings.
+
+## Building
+
+There is no Mac or Android SDK on the development PC, so both apps are built by GitHub Actions
+(`.github/workflows/mobile-apps.yml`) whenever something in `mobile/` changes:
+
+- **iOS:** a macOS runner generates the Xcode project from `ios/project.yml` with XcodeGen and builds for the iOS Simulator. The zipped `.app` is saved as the `GlassMeet-ios-simulator` artifact.
+- **Android:** a Linux runner builds `app-debug.apk`, saved as the `GlassMeet-android` artifact.
+
+On a Mac you can also run `brew install xcodegen && cd mobile/ios && xcodegen generate` and open `GlassMeet.xcodeproj`, or open `mobile/android` in Android Studio.
+
+## Cloud phones (Appetize)
+
+Add an Appetize API token as the repository secret `APPETIZE_API_TOKEN`. Each build then uploads to Appetize and the run summary links the cloud iPhone and Android phone. After the first upload, save the printed public keys as the repository variables `APPETIZE_IOS_KEY` and `APPETIZE_ANDROID_KEY`, so later builds update the same apps instead of creating new ones.
+
+## App icons
+
+From the brand kit's `iosicons/ver2_dark` set.

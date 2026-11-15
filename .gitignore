@@ -12,3 +12,16 @@ data/
 
 # Supabase CLI link state (project ref, database host)
 supabase/.temp/
+
+# Native apps (mobile/): the Xcode project is generated from mobile/ios/project.yml
+mobile/ios/GlassMeet.xcodeproj/
+mobile/ios/build/
+mobile/ios/xcodebuild.log
+xcuserdata/
+.DS_Store
+mobile/android/.gradle/
+mobile/android/build/
+mobile/android/app/build/
+mobile/android/local.properties
+.kotlin/
+*.iml

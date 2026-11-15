@@ -1,0 +1,111 @@
+name: Build mobile apps
+
+# Builds the native iOS app (SwiftUI) on a macOS machine and the native Android app (Kotlin,
+# Jetpack Compose) on Linux, so no Mac or Android Studio is needed locally. When the
+# APPETIZE_API_TOKEN secret is set, each build is uploaded to Appetize, which runs it on a cloud
+# iPhone or Android phone in the browser.
+
+on:
+  push:
+    paths:
+      - 'mobile/**'
+      - '.github/workflows/mobile-apps.yml'
+  workflow_dispatch:
+
+jobs:
+  ios:
+    name: iOS (simulator build)
+    runs-on: macos-26
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Show Xcode
+        run: xcodebuild -version
+
+      - name: Generate the Xcode project
+        working-directory: mobile/ios
+        run: |
+          brew install xcodegen
+          xcodegen generate
+
+      - name: Build for the iOS Simulator
+        working-directory: mobile/ios
+        run: |
+          set -o pipefail
+          xcodebuild build \
+            -project GlassMeet.xcodeproj \
+            -scheme GlassMeet \
+            -configuration Debug \
+            -sdk iphonesimulator \
+            -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO \
+            | tee xcodebuild.log | grep -E '(error|warning: .*deprecated|BUILD (SUCCEEDED|FAILED))' || true
+          test -d build/Build/Products/Debug-iphonesimulator/GlassMeet.app
+
+      - name: Upload the build log on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-build-log
+          path: mobile/ios/xcodebuild.log
+
+      - name: Zip the app
+        run: |
+          cd mobile/ios/build/Build/Products/Debug-iphonesimulator
+          zip -qr "$GITHUB_WORKSPACE/GlassMeet-ios-simulator.zip" GlassMeet.app
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: GlassMeet-ios-simulator
+          path: GlassMeet-ios-simulator.zip
+
+      - name: Upload to Appetize (cloud iPhone)
+        env:
+          APPETIZE_API_TOKEN: ${{ secrets.APPETIZE_API_TOKEN }}
+          APPETIZE_KEY: ${{ vars.APPETIZE_IOS_KEY }}
+        run: |
+          if [ -z "$APPETIZE_API_TOKEN" ]; then echo "No APPETIZE_API_TOKEN secret; skipping."; exit 0; fi
+          url="https://api.appetize.io/v1/apps${APPETIZE_KEY:+/$APPETIZE_KEY}"
+          curl -sS --fail-with-body -X POST "$url" -H "X-API-KEY: $APPETIZE_API_TOKEN" \
+            -F "file=@GlassMeet-ios-simulator.zip" -F "platform=ios" -o appetize.json
+          key=$(python3 -c 'import json; print(json.load(open("appetize.json"))["publicKey"])')
+          echo "Cloud iPhone: https://appetize.io/app/$key" | tee -a "$GITHUB_STEP_SUMMARY"
+
+  android:
+    name: Android (debug APK)
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "9.6.0"
+
+      - name: Build the debug APK
+        working-directory: mobile/android
+        run: gradle assembleDebug --stacktrace
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: GlassMeet-android
+          path: mobile/android/app/build/outputs/apk/debug/app-debug.apk
+
+      - name: Upload to Appetize (cloud Android phone)
+        env:
+          APPETIZE_API_TOKEN: ${{ secrets.APPETIZE_API_TOKEN }}
+          APPETIZE_KEY: ${{ vars.APPETIZE_ANDROID_KEY }}
+        run: |
+          if [ -z "$APPETIZE_API_TOKEN" ]; then echo "No APPETIZE_API_TOKEN secret; skipping."; exit 0; fi
+          url="https://api.appetize.io/v1/apps${APPETIZE_KEY:+/$APPETIZE_KEY}"
+          curl -sS --fail-with-body -X POST "$url" -H "X-API-KEY: $APPETIZE_API_TOKEN" \
+            -F "file=@mobile/android/app/build/outputs/apk/debug/app-debug.apk" -F "platform=android" -o appetize.json
+          key=$(python3 -c 'import json; print(json.load(open("appetize.json"))["publicKey"])')
+          echo "Cloud Android phone: https://appetize.io/app/$key" | tee -a "$GITHUB_STEP_SUMMARY"
