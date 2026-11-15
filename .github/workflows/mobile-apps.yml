@@ -2,7 +2,7 @@ name: Build mobile apps
 
 # Builds the native iOS app (SwiftUI) on a macOS machine and the native Android app (Kotlin,
 # Jetpack Compose) on Linux, so no Mac or Android Studio is needed locally. When the
-# APPETIZE_API_TOKEN secret is set, each build is uploaded to Appetize, which runs it on a cloud
+# APPETIZE_API_TOKEN (or APPITIZE_API) secret is set, each build is uploaded to Appetize, which runs it on a cloud
 # iPhone or Android phone in the browser.
 
 on:
@@ -66,7 +66,7 @@ jobs:
 
       - name: Upload to Appetize (cloud iPhone)
         env:
-          APPETIZE_API_TOKEN: ${{ secrets.APPETIZE_API_TOKEN }}
+          APPETIZE_API_TOKEN: ${{ secrets.APPETIZE_API_TOKEN || secrets.APPITIZE_API }}
           APPETIZE_KEY: ${{ vars.APPETIZE_IOS_KEY }}
         run: |
           if [ -z "$APPETIZE_API_TOKEN" ]; then echo "No APPETIZE_API_TOKEN secret; skipping."; exit 0; fi
@@ -113,7 +113,7 @@ jobs:
 
       - name: Upload to Appetize (cloud Android phone)
         env:
-          APPETIZE_API_TOKEN: ${{ secrets.APPETIZE_API_TOKEN }}
+          APPETIZE_API_TOKEN: ${{ secrets.APPETIZE_API_TOKEN || secrets.APPITIZE_API }}
           APPETIZE_KEY: ${{ vars.APPETIZE_ANDROID_KEY }}
         run: |
           if [ -z "$APPETIZE_API_TOKEN" ]; then echo "No APPETIZE_API_TOKEN secret; skipping."; exit 0; fi
