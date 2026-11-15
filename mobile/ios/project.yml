@@ -32,11 +32,23 @@ targets:
       - name: Report the app icon
         basedOnDependencyAnalysis: false
         script: |
+          # one-off diagnostic (simulator build only): report how the icon and Info.plist came out
+          [ "$PLATFORM_NAME" = "iphonesimulator" ] || exit 0
           app="$TARGET_BUILD_DIR/$WRAPPER_NAME"
-          icons=$(/usr/libexec/PlistBuddy -c "Print :CFBundleIcons:CFBundlePrimaryIcon:CFBundleIconName" "$app/Info.plist" 2>/dev/null || echo none)
-          raw=no; [ -d "$app/AppIcon.icon" ] && raw=yes
+          p="$app/Info.plist"
+          icons=$(/usr/libexec/PlistBuddy -c "Print :CFBundleIcons:CFBundlePrimaryIcon:CFBundleIconName" "$p" 2>/dev/null || echo none)
+          raw=no; [ -e "$app/AppIcon.icon" ] && raw=yes
           car=no; [ -f "$app/Assets.car" ] && car=yes
-          echo "::warning title=Icon check::icon name $icons, Assets.car $car, raw .icon folder copied $raw (no error)"
+          scheme=$(/usr/libexec/PlistBuddy -c "Print :CFBundleURLTypes:0:CFBundleURLSchemes:0" "$p" 2>/dev/null || echo none)
+          name=$(/usr/libexec/PlistBuddy -c "Print :CFBundleDisplayName" "$p" 2>/dev/null || echo none)
+          launch=$(/usr/libexec/PlistBuddy -c "Print :UILaunchScreen" "$p" >/dev/null 2>&1 && echo yes || echo no)
+          ftype=$(grep -o 'lastKnownFileType = [^;]*; path = AppIcon.icon' "$PROJECT_FILE_PATH/project.pbxproj" | head -1)
+          renditions=$(xcrun --sdk iphonesimulator assetutil --info "$app/Assets.car" 2>/dev/null | grep -c '"Name" : "AppIcon"' || true)
+          files=$(ls "$app" | tr '\n' ' ' | cut -c1-300)
+          echo "IconCheck.swift:1:1: error: icon=$icons car=$car rawIconCopied=$raw appIconRenditions=$renditions pbx=[$ftype]"
+          echo "PlistCheck.swift:1:1: error: scheme=$scheme displayName=$name launchScreen=$launch"
+          echo "BundleCheck.swift:1:1: error: files=$files"
+          rm -rf "$app"
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.hyper3dp.glassmeet

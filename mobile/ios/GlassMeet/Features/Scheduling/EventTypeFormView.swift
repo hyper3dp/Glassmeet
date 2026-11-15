@@ -467,7 +467,7 @@ struct EventTypeFormView: View {
 
     private func load() async {
         loadError = nil
-        async let addressList = try? ProfileAPI.addresses()
+        async let addressList = ProfileAPI.addresses()
         switch source {
         case .edit(let id):
             do {
@@ -480,7 +480,7 @@ struct EventTypeFormView: View {
         case .new(let prefill):
             draft = prefill.map { EventTypeDraft($0, isNew: true) } ?? EventTypeDraft()
         }
-        addresses = await addressList ?? []
+        addresses = (try? await addressList) ?? []
         if let match = addresses.first(where: { $0.address == draft.address && !draft.address.isEmpty }) {
             addressChoice = match.id
         } else if draft.address.isEmpty, let first = addresses.first {
