@@ -16,10 +16,27 @@ targets:
     platform: iOS
     sources:
       - path: GlassMeet
+        excludes:
+          - "AppIcon.icon"
+          - "AppIcon.icon/**"
+      # The Icon Composer icon (Xcode 26). It sits beside the asset catalog, whose AppIcon set
+      # stays as the fallback; both are named AppIcon.
+      - path: GlassMeet/AppIcon.icon
+        type: file
+        buildPhase: resources
     dependencies:
       - package: Supabase
         product: Supabase
     scheme: {}
+    postBuildScripts:
+      - name: Report the app icon
+        basedOnDependencyAnalysis: false
+        script: |
+          app="$TARGET_BUILD_DIR/$WRAPPER_NAME"
+          icons=$(/usr/libexec/PlistBuddy -c "Print :CFBundleIcons:CFBundlePrimaryIcon:CFBundleIconName" "$app/Info.plist" 2>/dev/null || echo none)
+          raw=no; [ -d "$app/AppIcon.icon" ] && raw=yes
+          car=no; [ -f "$app/Assets.car" ] && car=yes
+          echo "::warning title=Icon check::icon name $icons, Assets.car $car, raw .icon folder copied $raw (no error)"
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.hyper3dp.glassmeet
@@ -28,6 +45,9 @@ targets:
         CURRENT_PROJECT_VERSION: "1"
         SWIFT_VERSION: "5.0"
         TARGETED_DEVICE_FAMILY: "1"
+        ENABLE_USER_SCRIPT_SANDBOXING: NO
+        # Info.plist holds the glassmeet:// URL scheme; Xcode adds the generated keys below to it
+        INFOPLIST_FILE: Info.plist
         GENERATE_INFOPLIST_FILE: YES
         INFOPLIST_KEY_CFBundleDisplayName: GlassMeet
         INFOPLIST_KEY_UILaunchScreen_Generation: YES

@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- glassmeet://auth-callback (Google and LinkedIn sign-in) and
+	     glassmeet://calendar-connections (Google Calendar and Outlook connect) -->
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>com.hyper3dp.glassmeet</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>glassmeet</string>
+			</array>
+		</dict>
+	</array>
+</dict>
+</plist>

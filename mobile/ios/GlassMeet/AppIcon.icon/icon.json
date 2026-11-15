@@ -1,0 +1,20 @@
+{
+  "fill": {
+    "automatic-gradient": "extended-srgb:0.0,0.0,0.0,1.0"
+  },
+  "groups": [
+    {
+      "layers": [
+        {
+          "image-name": "icon.png"
+        }
+      ]
+    }
+  ],
+  "supported-platforms": {
+    "circles": [
+      "watchOS"
+    ],
+    "squares": "shared"
+  }
+}
