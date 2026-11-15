@@ -142,9 +142,9 @@ fun SchedulingScreen(onEdit: (String) -> Unit, onNew: () -> Unit) {
             dismissLabel = "Cancel",
             onConfirm = { deleting = null; vm.delete(e) },
             onDismiss = { deleting = null },
-            extra = if (e.active) {
-                { TextButton(onClick = { deleting = null; vm.setActive(e, false) }) { Text("Turn off instead") } }
-            } else null,
+            extra = {
+                if (e.active) TextButton(onClick = { deleting = null; vm.setActive(e, false) }) { Text("Turn off instead") }
+            },
         )
     }
 }

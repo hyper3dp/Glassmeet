@@ -27,7 +27,8 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun handle(intent: Intent?) {
-        val data = intent?.data ?: return
+        if (intent == null) return
+        val data = intent.data ?: return
         if (data.scheme != "glassmeet") return
         when (data.host) {
             // glassmeet://auth-callback: Supabase finishes the Google / LinkedIn sign-in
