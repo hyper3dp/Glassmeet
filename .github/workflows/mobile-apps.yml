@@ -64,6 +64,33 @@ jobs:
           name: GlassMeet-ios-simulator
           path: GlassMeet-ios-simulator.zip
 
+      # A real-iPhone build, left unsigned: an Apple ID signs it when it is installed
+      # (Xcode, or a sideloading tool such as Sideloadly or AltStore on Windows).
+      - name: Build an unsigned iPhone .ipa
+        working-directory: mobile/ios
+        run: |
+          xcodebuild build \
+            -project GlassMeet.xcodeproj \
+            -scheme GlassMeet \
+            -configuration Release \
+            -sdk iphoneos \
+            -destination 'generic/platform=iOS' \
+            -derivedDataPath build-device \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" \
+            > device.log 2>&1 || true
+          app=build-device/Build/Products/Release-iphoneos/GlassMeet.app
+          if [ ! -d "$app" ]; then
+            grep -E ': error: ' device.log | sort -u | head -10 | while IFS= read -r line; do echo "::error title=Swift (device)::$line"; done
+            exit 1
+          fi
+          mkdir -p Payload && cp -R "$app" Payload/
+          zip -qr "$GITHUB_WORKSPACE/GlassMeet-unsigned.ipa" Payload
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: GlassMeet-unsigned-ipa
+          path: GlassMeet-unsigned.ipa
+
       - name: Upload to Appetize (cloud iPhone)
         env:
           APPETIZE_API_TOKEN: ${{ secrets.APPETIZE_API_TOKEN || secrets.APPITIZE_API }}

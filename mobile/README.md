@@ -15,6 +15,7 @@ There is no Mac or Android SDK on the development PC, so both apps are built by 
 (`.github/workflows/mobile-apps.yml`) whenever something in `mobile/` changes:
 
 - **iOS:** a macOS runner generates the Xcode project from `ios/project.yml` with XcodeGen and builds for the iOS Simulator. The zipped `.app` is saved as the `GlassMeet-ios-simulator` artifact.
+- **iPhone .ipa:** the same runner also builds for real iPhones, unsigned, saved as the `GlassMeet-unsigned-ipa` artifact. It installs only after it is signed with an Apple ID (Xcode on a Mac, or a sideloading tool such as Sideloadly or AltStore on Windows). With a free Apple ID the install lasts 7 days; App Store or TestFlight distribution needs a paid Apple Developer account and a signed archive.
 - **Android:** a Linux runner builds `app-debug.apk`, saved as the `GlassMeet-android` artifact.
 
 On a Mac you can also run `brew install xcodegen && cd mobile/ios && xcodegen generate` and open `GlassMeet.xcodeproj`, or open `mobile/android` in Android Studio.

@@ -17,6 +17,10 @@ supabase/.temp/
 mobile/ios/GlassMeet.xcodeproj/
 mobile/ios/build/
 mobile/ios/xcodebuild.log
+mobile/ios/build-device/
+mobile/ios/device.log
+mobile/ios/Payload/
+*.ipa
 xcuserdata/
 .DS_Store
 mobile/android/.gradle/
