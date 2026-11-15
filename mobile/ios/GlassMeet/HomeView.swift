@@ -118,12 +118,16 @@ struct MeetingsView: View {
         let shown: [Booking] = switch filter {
         case .upcoming: bookings.filter { $0.isUpcoming() }
         case .requests: bookings.filter(\.isPending)
-        case .past: bookings.filter { !$0.isUpcoming() && !$0.isPending }.reversed()
+        case .past: Array(bookings.filter { !$0.isUpcoming() && !$0.isPending }.reversed())
         }
         List {
             if shown.isEmpty, loaded {
-                ContentUnavailableView(emptyTitle, systemImage: "person.2", description: Text(emptyMessage))
-                    .listRowBackground(Color.clear)
+                ContentUnavailableView {
+                    Label(emptyTitle, systemImage: "person.2")
+                } description: {
+                    Text(emptyMessage)
+                }
+                .listRowBackground(Color.clear)
             }
             ForEach(shown) { MeetingRow(booking: $0) }
         }

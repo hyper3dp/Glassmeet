@@ -1,4 +1,4 @@
-@file:OptIn(ExperimentalMaterial3Api::class)
+@file:OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 
 package com.hyper3dp.glassmeet
 
@@ -7,6 +7,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -109,7 +110,7 @@ fun <T> rememberLoader(load: suspend () -> T): Loader<T> {
 // ── Page frame ──
 
 @Composable
-fun Page(
+fun Screen(
     title: String,
     onBack: (() -> Unit)? = null,
     actions: @Composable () -> Unit = {},
@@ -194,9 +195,9 @@ fun HomeScreen(account: AccountState, nav: Nav) {
     val context = LocalContext.current
     val loader = rememberLoader { Api.bookings() to Api.eventTypes() }
     val first = account.hostName.substringBefore(" ")
-    Page(if (first.isEmpty()) "Home" else "Hello, $first") { padding ->
+    Screen(if (first.isEmpty()) "Home" else "Hello, $first") { padding ->
         val (bookings, events) = loader.data ?: (null to null)
-        if (bookings == null || events == null) { if (loader.error == null) Loading() else Footer(loader.error!!); return@Page }
+        if (bookings == null || events == null) { if (loader.error == null) Loading() else Footer(loader.error!!); return@Screen }
         val upcoming = bookings.filter { it.isUpcoming() }
         val requests = bookings.filter { it.isPending }
         PullToRefreshBox(loader.refreshing, { loader.refresh(true) }, Modifier.padding(padding)) {
@@ -257,8 +258,8 @@ fun HomeScreen(account: AccountState, nav: Nav) {
 fun MeetingsScreen(nav: Nav) {
     val loader = rememberLoader { Api.bookings() }
     var filter by remember { mutableStateOf(0) }
-    Page("Meetings") { padding ->
-        val all = loader.data ?: run { if (loader.error == null) Loading() else Footer(loader.error!!); return@Page }
+    Screen("Meetings") { padding ->
+        val all = loader.data ?: run { if (loader.error == null) Loading() else Footer(loader.error!!); return@Screen }
         val requests = all.filter { it.isPending }
         val shown = when (filter) {
             0 -> all.filter { it.isUpcoming() }
@@ -322,7 +323,7 @@ fun MeetingScreen(id: String, account: AccountState, nav: Nav) {
         }
     }
 
-    Page(
+    Screen(
         "Meeting", onBack = nav::back,
         bottomBar = {
             if (b != null && live) Surface(tonalElevation = 3.dp) {
@@ -333,7 +334,7 @@ fun MeetingScreen(id: String, account: AccountState, nav: Nav) {
                             Button(onClick = { change(null, "approved", null) }, enabled = !busy, modifier = Modifier.weight(1f).height(52.dp)) { Text("Approve") }
                         }
                         b.guestPhone != null -> Button(
-                            onClick = { openUri(context, WhatsApp.link(b.guestPhone, message(data.third ?: WhatsApp.confirmation, b))) },
+                            onClick = { openUri(context, WhatsApp.link(b.guestPhone, message(data?.third ?: WhatsApp.confirmation, b))) },
                             modifier = Modifier.fillMaxWidth().height(52.dp),
                         ) { Icon(Icons.AutoMirrored.Filled.Send, null); Spacer(Modifier.size(8.dp)); Text("Confirm on WhatsApp") }
                         else -> Button(onClick = { openUrl(context, "mailto:${b.guestEmail}") }, modifier = Modifier.fillMaxWidth().height(52.dp)) {
@@ -344,14 +345,14 @@ fun MeetingScreen(id: String, account: AccountState, nav: Nav) {
             }
         },
     ) { padding ->
-        if (b == null) { if (loader.error == null) Loading() else Footer(loader.error!!); return@Page }
+        if (b == null) { if (loader.error == null) Loading() else Footer(loader.error!!); return@Screen }
         LazyColumn(Modifier.padding(padding), contentPadding = ScreenPadding, verticalArrangement = Arrangement.spacedBy(4.dp)) {
             item {
                 GroupCard {
                     Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                         Avatar(b.guestName, 56)
                         Text(b.guestName, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-                        Text(b.eventName ?: data.second?.name ?: "Meeting", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(b.eventName ?: data?.second?.name ?: "Meeting", color = MaterialTheme.colorScheme.onSurfaceVariant)
                         when {
                             b.isPending -> Badge("Waiting for your reply", warningColor())
                             b.isDeclined -> Badge("Declined", MaterialTheme.colorScheme.onSurfaceVariant)
@@ -368,7 +369,7 @@ fun MeetingScreen(id: String, account: AccountState, nav: Nav) {
                 GroupCard {
                     ListItem(headlineContent = { Text(Fmt.date(b.start)) }, supportingContent = { Text("${Fmt.time(b.start)} to ${Fmt.time(b.end)}") },
                         colors = ListItemDefaults.colors(containerColor = Color.Transparent))
-                    val link = b.meetingUrl ?: data.second?.meetingUrl
+                    val link = b.meetingUrl ?: data?.second?.meetingUrl
                     if (link != null) {
                         HorizontalDivider()
                         ListItem(headlineContent = { Text("Join meeting") }, supportingContent = { Text(link) },
@@ -397,7 +398,7 @@ fun MeetingScreen(id: String, account: AccountState, nav: Nav) {
                 item {
                     // The chat bubble squares off its top-right corner, as in the chat itself
                     Text(
-                        message(data.third ?: WhatsApp.confirmation, b), style = MaterialTheme.typography.bodyMedium,
+                        message(data?.third ?: WhatsApp.confirmation, b), style = MaterialTheme.typography.bodyMedium,
                         modifier = Modifier.fillMaxWidth().background(bubbleColor(), RoundedCornerShape(12.dp, 0.dp, 12.dp, 12.dp)).padding(14.dp),
                     )
                     Footer("The message opens in WhatsApp ready to send. Nothing is sent until you send it.")
@@ -434,11 +435,11 @@ fun SchedulingScreen(nav: Nav) {
     val scope = rememberCoroutineScope()
     val loader = rememberLoader { Api.eventTypes() }
     var copied by remember { mutableStateOf<String?>(null) }
-    Page("Scheduling", actions = {
+    Screen("Scheduling", actions = {
         // Creating is an action, so it sits in the app bar, not the navigation bar
         IconButton(onClick = { nav.open(Page.EditEvent(null)) }) { Icon(Icons.Filled.Add, "New event type") }
     }) { padding ->
-        val events = loader.data ?: run { if (loader.error == null) Loading() else Footer(loader.error!!); return@Page }
+        val events = loader.data ?: run { if (loader.error == null) Loading() else Footer(loader.error!!); return@Screen }
         PullToRefreshBox(loader.refreshing, { loader.refresh(true) }, Modifier.padding(padding)) {
             LazyColumn(contentPadding = ScreenPadding, verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 if (events.isEmpty()) item {
@@ -513,7 +514,7 @@ fun EventTypeEditor(id: String?, nav: Nav) {
         }
     }
 
-    Page(
+    Screen(
         if (id == null) "New event type" else "Event type", onBack = nav::back,
         actions = { TextButton(onClick = ::save, enabled = !busy) { Text("Save") } },
     ) { padding ->
@@ -588,8 +589,8 @@ fun HoursScreen() {
         }
     }
 
-    Page("Working hours") { padding ->
-        val rules = loader.data ?: run { if (loader.error == null) Loading() else Footer(loader.error!!); return@Page }
+    Screen("Working hours") { padding ->
+        val rules = loader.data ?: run { if (loader.error == null) Loading() else Footer(loader.error!!); return@Screen }
         PullToRefreshBox(loader.refreshing, { loader.refresh(true) }, Modifier.padding(padding)) {
             LazyColumn(contentPadding = ScreenPadding) {
                 error?.let { item { Footer(it) } }
@@ -668,7 +669,7 @@ fun SettingsScreen(account: AccountState) {
         runCatching { Api.whatsApp() }.getOrNull()?.let { phone = it.phoneNumber.orEmpty(); template = it.confirmationTemplate ?: WhatsApp.confirmation }
     }
 
-    Page("Settings") { padding ->
+    Screen("Settings") { padding ->
         Column(Modifier.padding(padding).verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
             GroupCard {
                 ListItem(
