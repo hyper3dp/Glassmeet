@@ -6,7 +6,8 @@ plugins {
 
 android {
     namespace = "com.hyper3dp.glassmeet"
-    compileSdk = 36
+    // Compose 1.12 libraries require compiling against API 37; the app still targets 36
+    compileSdk = 37
 
     defaultConfig {
         applicationId = "com.hyper3dp.glassmeet"
