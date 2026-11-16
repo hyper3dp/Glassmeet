@@ -28,14 +28,22 @@ targets:
       - package: Supabase
         product: Supabase
     scheme: {}
-    preBuildScripts:
-      - name: Icon diagnostic
+    postBuildScripts:
+      # One-off diagnostic, read from the artifact sizes: an empty simulator app means the
+      # .icon bundle was copied raw (not compiled); an empty device app means Info.plist lacks
+      # the URL scheme, display name or launch screen.
+      - name: Bundle diagnostic
         basedOnDependencyAnalysis: false
         script: |
-          pbx="$PROJECT_FILE_PATH/project.pbxproj"
-          ref=$(grep -m1 'path = AppIcon.icon' "$pbx" | sed 's/"/ /g' | tr -s ' ' | cut -c1-220)
-          res=$(grep -c 'AppIcon.icon in Resources' "$pbx")
-          printf '#error("ICONDIAG ref=[%s] inResources=%s ")\n' "$ref" "$res" > "$SRCROOT/GlassMeet/Diagnostics.swift"
+          app="$TARGET_BUILD_DIR/$WRAPPER_NAME"
+          p="$app/Info.plist"
+          if [ "$PLATFORM_NAME" = "iphonesimulator" ]; then
+            if [ -e "$app/AppIcon.icon" ] || [ -e "$app/icon.json" ]; then rm -rf "$app"/*; fi
+          else
+            scheme=$(/usr/libexec/PlistBuddy -c "Print :CFBundleURLTypes:0:CFBundleURLSchemes:0" "$p" 2>/dev/null)
+            name=$(/usr/libexec/PlistBuddy -c "Print :CFBundleDisplayName" "$p" 2>/dev/null)
+            if [ "$scheme" != "glassmeet" ] || [ "$name" != "GlassMeet" ] || ! /usr/libexec/PlistBuddy -c "Print :UILaunchScreen" "$p" >/dev/null 2>&1; then rm -rf "$app"/*; fi
+          fi
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.hyper3dp.glassmeet
