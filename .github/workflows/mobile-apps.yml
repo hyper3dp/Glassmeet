@@ -1,9 +1,9 @@
 name: Build mobile apps
 
-# Builds the native iOS app (SwiftUI) on a macOS machine and the native Android app (Kotlin,
-# Jetpack Compose) on Linux, so no Mac or Android Studio is needed locally. When the
-# APPETIZE_API_TOKEN (or APPITIZE_API) secret is set, each build is uploaded to Appetize, which runs it on a cloud
-# iPhone or Android phone in the browser.
+# Builds the native iOS app (SwiftUI) for real iPhones on a macOS machine and the native Android
+# app (Kotlin, Jetpack Compose) on Linux, so no Mac or Android Studio is needed locally. When the
+# APPETIZE_API_TOKEN (or APPITIZE_API) secret is set, the Android build is uploaded to Appetize,
+# which runs it on a cloud Android phone in the browser.
 
 on:
   push:
@@ -13,8 +13,10 @@ on:
   workflow_dispatch:
 
 jobs:
+  # A real-iPhone build (no simulator), left unsigned: an Apple ID signs it when it is
+  # installed (Xcode, or a sideloading tool such as Sideloadly or AltStore on Windows).
   ios:
-    name: iOS (simulator build)
+    name: iOS (unsigned .ipa)
     runs-on: macos-26
     timeout-minutes: 40
     steps:
@@ -29,44 +31,6 @@ jobs:
           brew install xcodegen
           xcodegen generate
 
-      - name: Build for the iOS Simulator
-        working-directory: mobile/ios
-        run: |
-          set -o pipefail
-          xcodebuild build \
-            -project GlassMeet.xcodeproj \
-            -scheme GlassMeet \
-            -configuration Debug \
-            -sdk iphonesimulator \
-            -destination 'generic/platform=iOS Simulator' \
-            -derivedDataPath build \
-            CODE_SIGNING_ALLOWED=NO \
-            | tee xcodebuild.log | grep -E '(error|warning: .*deprecated|BUILD (SUCCEEDED|FAILED))' || true
-          # the .app folder exists before compiling starts, so check for the executable itself
-          if [ ! -f build/Build/Products/Debug-iphonesimulator/GlassMeet.app/GlassMeet ]; then
-            grep -E ': error: ' xcodebuild.log | sort -u | head -10 | while IFS= read -r line; do echo "::error title=Swift::$line"; done
-            exit 1
-          fi
-
-      - name: Upload the build log on failure
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: ios-build-log
-          path: mobile/ios/xcodebuild.log
-
-      - name: Zip the app
-        run: |
-          cd mobile/ios/build/Build/Products/Debug-iphonesimulator
-          zip -qr "$GITHUB_WORKSPACE/GlassMeet-ios-simulator.zip" GlassMeet.app
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: GlassMeet-ios-simulator
-          path: GlassMeet-ios-simulator.zip
-
-      # A real-iPhone build, left unsigned: an Apple ID signs it when it is installed
-      # (Xcode, or a sideloading tool such as Sideloadly or AltStore on Windows).
       - name: Build an unsigned iPhone .ipa
         working-directory: mobile/ios
         run: |
@@ -79,31 +43,26 @@ jobs:
             -derivedDataPath build-device \
             CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" \
             > device.log 2>&1 || true
+          # the .app folder exists before compiling starts, so check for the executable itself
           app=build-device/Build/Products/Release-iphoneos/GlassMeet.app
           if [ ! -f "$app/GlassMeet" ]; then
-            grep -E ': error: ' device.log | sort -u | head -10 | while IFS= read -r line; do echo "::error title=Swift (device)::$line"; done
+            grep -E ': error: ' device.log | sort -u | head -10 | while IFS= read -r line; do echo "::error title=Swift::$line"; done
             exit 1
           fi
           mkdir -p Payload && cp -R "$app" Payload/
           zip -qr "$GITHUB_WORKSPACE/GlassMeet-unsigned.ipa" Payload
 
+      - name: Upload the build log on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-build-log
+          path: mobile/ios/device.log
+
       - uses: actions/upload-artifact@v4
         with:
           name: GlassMeet-unsigned-ipa
           path: GlassMeet-unsigned.ipa
-
-      - name: Upload to Appetize (cloud iPhone)
-        env:
-          APPETIZE_API_TOKEN: ${{ secrets.APPETIZE_API_TOKEN || secrets.APPITIZE_API }}
-          APPETIZE_KEY: ${{ vars.APPETIZE_IOS_KEY || '4b3x6akp4arpb3xmgvmidck7my' }}
-        run: |
-          if [ -z "$APPETIZE_API_TOKEN" ]; then echo "::notice title=Appetize::No Appetize token secret; upload skipped."; exit 0; fi
-          url="https://api.appetize.io/v1/apps${APPETIZE_KEY:+/$APPETIZE_KEY}"
-          curl -sS --fail-with-body -X POST "$url" -H "X-API-KEY: $APPETIZE_API_TOKEN" \
-            -F "file=@GlassMeet-ios-simulator.zip" -F "platform=ios" -o appetize.json
-          key=$(python3 -c 'import json; print(json.load(open("appetize.json"))["publicKey"])')
-          echo "Cloud iPhone: https://appetize.io/app/$key" | tee -a "$GITHUB_STEP_SUMMARY"
-          echo "::notice title=Cloud iPhone::https://appetize.io/app/$key"
 
   # A signed .ipa for TestFlight / App Store (or ad hoc devices). Needs a paid Apple Developer
   # account and these repository secrets; until they all exist, the job skips its build steps.
