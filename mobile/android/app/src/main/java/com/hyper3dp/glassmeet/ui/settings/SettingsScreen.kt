@@ -26,6 +26,7 @@ import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.Key
 import androidx.compose.material.icons.outlined.PhotoCamera
+import androidx.compose.material.icons.outlined.Place
 import androidx.compose.material.icons.outlined.PrivacyTip
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -65,7 +66,7 @@ import com.hyper3dp.glassmeet.ui.theme.AppTheme
 import com.hyper3dp.glassmeet.util.Intents
 
 @Composable
-fun SettingsScreen(onOpenWhatsApp: () -> Unit, onOpenCalendars: () -> Unit) {
+fun SettingsScreen(onOpenWhatsApp: () -> Unit, onOpenCalendars: () -> Unit, onOpenAddresses: () -> Unit) {
     val vm: SettingsViewModel = viewModel()
     val s by vm.state.collectAsStateWithLifecycle()
     val context = LocalContext.current
@@ -117,7 +118,7 @@ fun SettingsScreen(onOpenWhatsApp: () -> Unit, onOpenCalendars: () -> Unit) {
                     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                         OutlinedTextField(f.name, { v -> vm.edit { it.copy(name = v.take(80)) } }, label = { Text("Name") }, singleLine = true, modifier = Modifier.fillMaxWidth())
                         OutlinedTextField(
-                            f.username, { v -> vm.edit { it.copy(username = v.lowercase().filter { c -> c.isLetterOrDigit() || c == '_' }.take(40)) } },
+                            f.username, { v -> vm.edit { it.copy(username = v.lowercase().filter { c -> c in 'a'..'z' || c in '0'..'9' || c == '_' }.take(40)) } },
                             label = { Text("Username") }, singleLine = true, prefix = { Text("@") },
                             supportingText = { Text("Letters, numbers and _") }, modifier = Modifier.fillMaxWidth(),
                         )
@@ -126,13 +127,13 @@ fun SettingsScreen(onOpenWhatsApp: () -> Unit, onOpenCalendars: () -> Unit) {
                             modifier = Modifier.fillMaxWidth(),
                         )
                         OutlinedTextField(
-                            f.bio, { v -> vm.edit { it.copy(bio = v.take(500)) } }, label = { Text("Bio") }, minLines = 2,
+                            f.bio, { v -> vm.edit { it.copy(bio = v.take(300)) } }, label = { Text("Bio") }, minLines = 2,
                             supportingText = { Text("Shown on your booking pages") }, modifier = Modifier.fillMaxWidth(),
                         )
                         val zones = (listOf(f.timezone) + COMMON_TIMEZONES).distinct()
                         SelectField("Time zone", zones.map { it to it.replace('_', ' ') }, f.timezone, { v -> vm.edit { it.copy(timezone = v) } }, Modifier.fillMaxWidth())
                         OutlinedTextField(
-                            f.whatsapp, { v -> vm.edit { it.copy(whatsapp = v.filter { c -> c.isDigit() || c in "+ -()" }.take(24)) } },
+                            f.whatsapp, { v -> vm.edit { it.copy(whatsapp = com.hyper3dp.glassmeet.util.Format.asciiDigits(v).filter { c -> c in '0'..'9' || c in "+ -()" }.take(24)) } },
                             label = { Text("WhatsApp number") }, singleLine = true, placeholder = { Text("+971 50 123 4567") },
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone), modifier = Modifier.fillMaxWidth(),
                         )
@@ -152,6 +153,8 @@ fun SettingsScreen(onOpenWhatsApp: () -> Unit, onOpenCalendars: () -> Unit) {
                     NavRow("WhatsApp messages", Icons.AutoMirrored.Outlined.Chat, "Your number and message templates", onClick = onOpenWhatsApp)
                     HorizontalDivider(Modifier.padding(start = 56.dp), color = AppTheme.tokens.border)
                     NavRow("Calendar connections", Icons.Outlined.CalendarMonth, "Google, Outlook and calendar feeds", onClick = onOpenCalendars)
+                    HorizontalDivider(Modifier.padding(start = 56.dp), color = AppTheme.tokens.border)
+                    NavRow("Addresses", Icons.Outlined.Place, "Places you meet in person", onClick = onOpenAddresses)
                     HorizontalDivider(Modifier.padding(start = 56.dp), color = AppTheme.tokens.border)
                     NavRow("Change password", Icons.Outlined.Key, "We'll email you a code", onClick = vm::startPasswordChange)
                 }
@@ -224,7 +227,7 @@ private fun PasswordDialog(s: SettingsUiState, vm: SettingsViewModel) {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Text("We sent a code to ${s.email}.")
                 OutlinedTextField(
-                    code, { code = it.filter { c -> c.isDigit() }.take(10) }, label = { Text("Code") }, singleLine = true,
+                    code, { code = com.hyper3dp.glassmeet.util.Format.digits(it).take(10) }, label = { Text("Code") }, singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword), modifier = Modifier.fillMaxWidth(),
                 )
                 OutlinedTextField(

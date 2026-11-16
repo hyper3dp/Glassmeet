@@ -225,7 +225,7 @@ class EventTypeFormViewModel(private val id: String?) : ViewModel() {
         val kind = f.locationKind
         val unit = NOTICE_UNITS.firstOrNull { it.first == f.noticeUnit }?.second ?: 1
         return buildJsonObject {
-            put("name", f.name.trim().take(120))
+            put("name", f.name.trim().take(80))
             put("description", f.description.trim().take(500).ifEmpty { null })
             put("note", f.note.trim().take(2000).ifEmpty { null })
             put("duration", number(f.duration, 5, 720, 30))

@@ -61,7 +61,8 @@ object Format {
         return (h * 60 + m).takeIf { it in 0..1440 }
     }
 
-    fun hhmm(minutes: Int): String = "%02d:%02d".format(minutes / 60, minutes % 60)
+    /** "09:00" for the database: always Latin digits (Locale.ROOT), whatever the phone's language. */
+    fun hhmm(minutes: Int): String = String.format(Locale.ROOT, "%02d:%02d", minutes / 60, minutes % 60)
 
     fun clock(minutes: Int): String =
         if (minutes >= 1440) "12:00 AM (midnight)"
@@ -69,5 +70,9 @@ object Format {
 
     fun clock(value: String?): String = minutesOf(value)?.let { clock(it) } ?: value.orEmpty()
 
-    fun digits(value: String?): String = value.orEmpty().filter { it.isDigit() }
+    /** Digits only, as ASCII 0-9 (an Arabic-Indic "٠٥٠" becomes "050"), for links and the database. */
+    fun digits(value: String?): String = value.orEmpty().filter { it.isDigit() }.map { '0' + Character.digit(it, 10) }.joinToString("")
+
+    /** Typed numbers and phone numbers with any script's digits turned into ASCII digits. */
+    fun asciiDigits(value: String): String = value.map { if (it.isDigit()) '0' + Character.digit(it, 10) else it }.joinToString("")
 }

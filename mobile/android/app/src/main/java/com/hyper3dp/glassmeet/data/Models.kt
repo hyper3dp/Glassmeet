@@ -28,6 +28,8 @@ data class Profile(
     val bio: String? = null,
     val holidays: String? = null,
     @SerialName("max_per_day") val maxPerDay: Int? = null,
+    /** null while the column doesn't exist yet (older databases) */
+    @SerialName("hours_seeded") val hoursSeeded: Boolean? = null,
 )
 
 @Serializable

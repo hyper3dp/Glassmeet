@@ -26,7 +26,10 @@ object ProfileRepository {
         get() = _profile.value?.fullName?.takeIf { it.isNotBlank() }
             ?: supabase.auth.currentUserOrNull()?.email?.substringBefore("@").orEmpty()
 
-    fun clear() { _profile.value = null }
+    fun clear() {
+        _profile.value = null
+        seeded = false
+    }
 
     /** Loads the profile, creating it the first time (web: the profile is made on first load). */
     suspend fun load(): Profile {
@@ -41,11 +44,59 @@ object ProfileRepository {
                 put("email", user?.email)
                 put("full_name", name)
             }
-            runCatching { insertRow("profiles", row).decodeSingle<Profile>() }
-                .getOrElse { Profile(id = uid, email = user?.email, fullName = name) }
+            try {
+                insertRow("profiles", row).decodeSingle<Profile>()
+            } catch (e: Exception) {
+                // made at the same moment by the database trigger or another device: read it again
+                supabase.from("profiles").select { filter { eq("id", uid) } }.decodeList<Profile>().firstOrNull() ?: throw e
+            }
         }
         _profile.value = profile
+        runCatching { seedHours(profile) }
         return profile
+    }
+
+    private var seeded = false
+
+    /**
+     * First-run Mon-Fri 9:00-17:00 hours, so booking pages work out of the box (web: useprofile.js).
+     * Seeded once per host: profiles.hours_seeded is claimed on the server (update ... where
+     * hours_seeded = false), so a host who later turns every day off keeps them off.
+     */
+    private suspend fun seedHours(p: Profile) {
+        if (seeded || p.hoursSeeded == true) return
+        seeded = true
+        if (p.hoursSeeded == false) {
+            val claimed = updateRows("profiles", buildJsonObject { put("hours_seeded", true) }) {
+                eq("id", p.id)
+                eq("hours_seeded", false)
+            }.decodeList<Profile>().isNotEmpty()
+            if (!claimed) return
+            try {
+                insertDefaultHoursIfNone()
+                _profile.value = _profile.value?.copy(hoursSeeded = true)
+            } catch (e: Exception) {
+                // let the next load try again
+                runCatching { updateRows("profiles", buildJsonObject { put("hours_seeded", false) }) { eq("id", p.id) } }
+                seeded = false
+                throw e
+            }
+            return
+        }
+        // no hours_seeded column yet: hosts with no hours at all get the defaults
+        insertDefaultHoursIfNone()
+    }
+
+    private suspend fun insertDefaultHoursIfNone() {
+        if (AvailabilityRepository.rules().isNotEmpty()) return
+        val rows = (1..5).map { dow ->
+            buildJsonObject {
+                put("day_of_week", dow)
+                put("start_time", "09:00")
+                put("end_time", "17:00")
+            }
+        }
+        supabase.from("availability_rules").insert(body = kotlinx.serialization.json.JsonArray(rows))
     }
 
     suspend fun ensureLoaded(): Profile = _profile.value ?: load()

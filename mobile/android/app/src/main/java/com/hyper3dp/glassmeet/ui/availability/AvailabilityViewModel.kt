@@ -144,6 +144,15 @@ class AvailabilityViewModel : LoadingViewModel<AvailabilityData>() {
         write("Could not remove this date.") { AvailabilityRepository.deleteException(e.id) }
     }
 
+    /** Cancels a meeting that falls on a holiday (pushBooking follows), keeping it listed as cancelled. */
+    fun cancelClash(c: Clash) {
+        write("Could not cancel this meeting.") {
+            val saved = BookingsRepository.cancel(c.booking.id)
+            setData { d -> d.copy(clashes = d.clashes.map { if (it.booking.id == saved.id) it.copy(booking = saved) else it }) }
+            Snack.show("Meeting cancelled. Send ${saved.name} a new time on WhatsApp.")
+        }
+    }
+
     // ── Daily limit and holidays (profile) ──
 
     fun setDailyLimit(limit: Int?) {

@@ -49,6 +49,20 @@ class SchedulingViewModel : LoadingViewModel<SchedulingData>() {
         }
     }
 
+    /** Saves the event type's settings (no dates) as one of the host's templates (web: Save as template). */
+    fun saveAsTemplate(e: EventType) {
+        viewModelScope.launch {
+            try {
+                val data = EventTypesRepository.templateData(EventTypesRepository.asTemplateData(e))
+                EventTypesRepository.saveTemplate(e.name, data)
+                Snack.show("Saved \u201c${e.name}\u201d as a template")
+                reloadQuietly()
+            } catch (ex: Exception) {
+                Snack.show("Could not save the template. ${ex.friendly("")}".trim())
+            }
+        }
+    }
+
     fun deleteTemplate(t: EventTemplate) {
         viewModelScope.launch {
             try {

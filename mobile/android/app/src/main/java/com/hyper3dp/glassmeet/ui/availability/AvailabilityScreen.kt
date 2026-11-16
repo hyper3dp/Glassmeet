@@ -44,6 +44,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.platform.LocalContext
+import com.hyper3dp.glassmeet.data.Messages
+import com.hyper3dp.glassmeet.util.Intents
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -73,6 +76,8 @@ fun AvailabilityScreen() {
     val state by vm.state.collectAsStateWithLifecycle()
     var adding by remember { mutableStateOf(false) }
     var removing by remember { mutableStateOf<AvailabilityException?>(null) }
+    var cancelling by remember { mutableStateOf<Clash?>(null) }
+    val context = LocalContext.current
 
     TopLevelScaffold(
         title = "Availability",
@@ -158,13 +163,14 @@ fun AvailabilityScreen() {
                                 Spacer(Modifier.height(8.dp))
                                 Text("Meetings already booked on a holiday", style = MaterialTheme.typography.labelLarge, color = AppTheme.tokens.warning)
                                 d.clashes.forEach { c ->
-                                    Text(
-                                        "${c.booking.name} · ${Format.dayAndTime(c.booking.start, d.zone)} · ${c.holiday}",
-                                        style = MaterialTheme.typography.bodyMedium, maxLines = 2, overflow = TextOverflow.Ellipsis,
-                                        modifier = Modifier.padding(top = 4.dp),
+                                    ClashRow(
+                                        c, d.zone,
+                                        onCancel = { cancelling = c },
+                                        onMessage = {
+                                            Intents.open(context, Messages.whatsAppLink(c.booking.guestPhone, Messages.rescheduleMessage(c.booking, c.holiday, d.zone)))
+                                        },
                                     )
                                 }
-                                HintText("Open them in Meetings to cancel and send a message.", Modifier.padding(top = 4.dp))
                             }
                             val next = d.holidays.take(3)
                             if (next.isNotEmpty()) {
@@ -191,11 +197,38 @@ fun AvailabilityScreen() {
             onDismiss = { adding = false },
         )
     }
+    cancelling?.let { c ->
+        ConfirmDialog(
+            "Cancel this meeting?",
+            "${c.booking.name}'s meeting falls on ${c.holiday}. After cancelling, send them a message with a link to pick a new time.",
+            "Cancel meeting", dismissLabel = "Keep it",
+            onConfirm = { cancelling = null; vm.cancelClash(c) }, onDismiss = { cancelling = null },
+        )
+    }
     removing?.let { e ->
         ConfirmDialog(
             "Remove this override?", "Your weekly hours apply on ${e.date} again.", "Remove",
             onConfirm = { removing = null; vm.deleteException(e) }, onDismiss = { removing = null }, dismissLabel = "Cancel",
         )
+    }
+}
+
+@Composable
+private fun ClashRow(c: Clash, zone: java.time.ZoneId, onCancel: () -> Unit, onMessage: () -> Unit) {
+    Column(Modifier.fillMaxWidth().padding(top = 8.dp)) {
+        Text(c.booking.name, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        Text(
+            "${Format.dayAndTime(c.booking.start, zone)} · ${c.holiday}", style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 2, overflow = TextOverflow.Ellipsis,
+        )
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            if (c.booking.isCancelled) {
+                Text("Cancelled", style = MaterialTheme.typography.labelLarge, color = AppTheme.tokens.danger, modifier = Modifier.padding(top = 12.dp))
+            } else {
+                TextButton(onClick = onCancel) { Text("Cancel meeting", color = MaterialTheme.colorScheme.error) }
+            }
+            TextButton(onClick = onMessage) { Text("Message on WhatsApp") }
+        }
     }
 }
 

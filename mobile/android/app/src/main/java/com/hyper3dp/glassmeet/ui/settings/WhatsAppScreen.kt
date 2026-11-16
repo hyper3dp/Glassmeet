@@ -97,7 +97,7 @@ class WhatsAppViewModel : ViewModel() {
         }
     }
 
-    fun setPhone(v: String) = _state.update { it.copy(phone = v.filter { c -> c.isDigit() || c in "+ -()" }.take(24), saveError = null) }
+    fun setPhone(v: String) = _state.update { it.copy(phone = com.hyper3dp.glassmeet.util.Format.asciiDigits(v).filter { c -> c in '0'..'9' || c in "+ -()" }.take(24), saveError = null) }
     fun set(kind: Messages.Kind, v: TextFieldValue) = _state.update {
         val t = if (v.text.length > 2000) v.copy(text = v.text.take(2000)) else v
         when (kind) {

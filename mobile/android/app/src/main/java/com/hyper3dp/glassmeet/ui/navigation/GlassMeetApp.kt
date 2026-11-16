@@ -28,6 +28,18 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
+import androidx.compose.foundation.layout.Column
+import androidx.compose.material3.TextButton
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.unit.dp
+import com.hyper3dp.glassmeet.data.friendly
+import com.hyper3dp.glassmeet.ui.components.ErrorState
+import com.hyper3dp.glassmeet.ui.components.LoadingState
+import kotlinx.coroutines.launch
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -69,8 +81,38 @@ fun GlassMeetApp() {
     val signedIn = status is SessionStatus.Authenticated || status is SessionStatus.RefreshFailure
     when {
         status is SessionStatus.Initializing -> Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background))
-        signedIn && !recovering -> SignedInApp()
+        signedIn && !recovering -> ProfileGate { SignedInApp() }
         else -> SignedOutApp(startOnReset = recovering)
+    }
+}
+
+/** The app needs the host's profile (name, time zone): load it first, or say why it didn't load. */
+@Composable
+private fun ProfileGate(content: @Composable () -> Unit) {
+    val profile by ProfileRepository.profile.collectAsStateWithLifecycle()
+    var error by remember { mutableStateOf<String?>(null) }
+    var attempt by remember { mutableIntStateOf(0) }
+    val scope = rememberCoroutineScope()
+    LaunchedEffect(attempt) {
+        if (ProfileRepository.profile.value == null) {
+            error = null
+            try {
+                ProfileRepository.load()
+            } catch (e: Exception) {
+                error = e.friendly("Your profile didn't load.")
+            }
+        }
+    }
+    val message = error
+    when {
+        profile != null -> content()
+        message != null -> Scaffold(containerColor = MaterialTheme.colorScheme.background) { padding ->
+            Column(Modifier.fillMaxSize().padding(padding), horizontalAlignment = Alignment.CenterHorizontally) {
+                Box(Modifier.weight(1f)) { ErrorState(message, onRetry = { attempt++ }) }
+                TextButton(onClick = { scope.launch { AuthRepository.signOut() } }, modifier = Modifier.padding(bottom = 24.dp)) { Text("Sign out") }
+            }
+        }
+        else -> Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) { LoadingState() }
     }
 }
 
@@ -131,7 +173,6 @@ private fun SignedInApp() {
     val destination = entry?.destination
     val snackbar = remember { SnackbarHostState() }
 
-    LaunchedEffect(Unit) { runCatching { ProfileRepository.load() } }
     LaunchedEffect(Unit) { Snack.messages.collect { snackbar.showSnackbar(it) } }
 
     // a calendar connection came back from the browser: open its page, which finishes it
@@ -206,9 +247,11 @@ private fun SignedInApp() {
                     SettingsScreen(
                         onOpenWhatsApp = { nav.navigate(WhatsAppRoute) },
                         onOpenCalendars = { nav.navigate(CalendarConnectionsRoute) },
+                        onOpenAddresses = { nav.navigate(AddressesRoute) },
                     )
                 }
                 composable<WhatsAppRoute> { WhatsAppScreen(onBack = { nav.popBackStack() }) }
+                composable<AddressesRoute> { com.hyper3dp.glassmeet.ui.settings.AddressesScreen(onBack = { nav.popBackStack() }) }
                 composable<CalendarConnectionsRoute> { CalendarConnectionsScreen(onBack = { nav.popBackStack() }) }
             }
         }

@@ -117,6 +117,7 @@ fun SchedulingScreen(onEdit: (String) -> Unit, onNew: () -> Unit) {
                             onCopy = { Intents.copy(context, Backend.bookingUrl(e.id), "Booking link", toast = "Link copied") },
                             onShare = { Intents.share(context, "Book a time with me: ${e.name}\n${Backend.bookingUrl(e.id)}", "Share booking link") },
                             onDuplicate = { startFrom(EventTypesRepository.asTemplateData(e)) },
+                            onSaveTemplate = { vm.saveAsTemplate(e) },
                             onDelete = { deleting = e },
                         )
                     }
@@ -157,6 +158,7 @@ private fun EventTypeCard(
     onCopy: () -> Unit,
     onShare: () -> Unit,
     onDuplicate: () -> Unit,
+    onSaveTemplate: () -> Unit,
     onDelete: () -> Unit,
 ) {
     var menu by remember { mutableStateOf(false) }
@@ -199,6 +201,7 @@ private fun EventTypeCard(
                 DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
                     DropdownMenuItem(text = { Text("Edit") }, leadingIcon = { Icon(Icons.Outlined.Edit, null) }, onClick = { menu = false; onEdit() })
                     DropdownMenuItem(text = { Text("Duplicate") }, leadingIcon = { Icon(Icons.Outlined.FileCopy, null) }, onClick = { menu = false; onDuplicate() })
+                    DropdownMenuItem(text = { Text("Save as template") }, leadingIcon = { Icon(Icons.Outlined.Description, null) }, onClick = { menu = false; onSaveTemplate() })
                     DropdownMenuItem(
                         text = { Text("Delete", color = MaterialTheme.colorScheme.error) },
                         leadingIcon = { Icon(Icons.Outlined.Delete, null, tint = MaterialTheme.colorScheme.error) },

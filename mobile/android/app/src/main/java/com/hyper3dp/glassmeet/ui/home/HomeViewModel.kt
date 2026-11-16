@@ -38,7 +38,7 @@ class HomeViewModel : LoadingViewModel<HomeData>() {
     }
 
     override suspend fun fetch(): HomeData {
-        val (bookings, events) = BookingsRepository.both({ BookingsRepository.list() }, { EventTypesRepository.list() })
+        val (bookings, events) = BookingsRepository.both({ BookingsRepository.list(includeExpired = true) }, { EventTypesRepository.list() })
         val profile = ProfileRepository.ensureLoaded()
         val zone = Format.zone(profile.timezone)
         val now = Instant.now()

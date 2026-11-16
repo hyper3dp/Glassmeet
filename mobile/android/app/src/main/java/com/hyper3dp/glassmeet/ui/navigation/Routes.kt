@@ -27,6 +27,7 @@ import kotlinx.serialization.Serializable
 @Serializable object AvailabilityRoute
 @Serializable object SettingsRoute
 @Serializable object WhatsAppRoute
+@Serializable object AddressesRoute
 @Serializable object CalendarConnectionsRoute
 
 // Signed out

@@ -153,6 +153,20 @@ object Messages {
         return filled.lines().filterNot { empty.matches(it) }.joinToString("\n")
     }
 
+    /** The message after cancelling a meeting that falls on a holiday (web: lib/holidays.js rescheduleMessage). */
+    fun rescheduleMessage(b: Booking, holiday: String, hostZone: ZoneId): String {
+        val zone = b.timezone?.let { Format.zone(it) } ?: hostZone
+        val first = Format.firstName(b.guestName)
+        // booking.timezone is the host's: name it, as the guest may be somewhere else
+        val short = runCatching {
+            java.time.format.DateTimeFormatter.ofPattern("z", java.util.Locale.US).format(b.start.atZone(zone))
+        }.getOrNull()
+        val link = b.eventTypeId?.let { Backend.bookingUrl(it) }.orEmpty()
+        return "Hi" + (if (first.isNotEmpty()) " $first" else "") +
+            ", I'm sorry, I need to reschedule our meeting on ${Format.longDate(b.start, zone)} at ${Format.time(b.start, zone)}" +
+            (if (short != null) " ($short)" else "") + " because of $holiday.\n\nPlease pick a new time that suits you here: $link"
+    }
+
     /** wa.me link to the guest's number (or the share picker when there's no number). */
     fun whatsAppLink(phone: String?, message: String): Uri {
         val digits = Format.digits(phone)

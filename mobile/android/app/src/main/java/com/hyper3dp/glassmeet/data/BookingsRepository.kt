@@ -20,14 +20,17 @@ object BookingsRepository {
     /** Emits a booking each time this app changes one, so open lists update without reloading. */
     val changes: SharedFlow<Booking> = _changes.asSharedFlow()
 
-    /** Up to 1000 meetings, newest first; cancellations older than two days are left out. */
-    suspend fun list(): List<Booking> {
+    /**
+     * Up to 1000 meetings, newest first; cancellations older than two days are left out unless
+     * [includeExpired] (Home's "All bookings" counts every booking, like the web dashboard).
+     */
+    suspend fun list(includeExpired: Boolean = false): List<Booking> {
         val now = Instant.now()
         return supabase.from("bookings").select {
             filter { eq("host_id", ownerId()) }
             order("start_time", Order.DESCENDING)
             limit(1000)
-        }.decodeList<Booking>().filterNot { it.isExpiredCancellation(now) }
+        }.decodeList<Booking>().filterNot { !includeExpired && it.isExpiredCancellation(now) }
     }
 
     /** For Analytics: the newest 1000 bookings, cancelled ones included (web: Analytics.jsx). */

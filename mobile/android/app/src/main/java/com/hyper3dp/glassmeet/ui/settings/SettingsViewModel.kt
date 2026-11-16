@@ -105,7 +105,7 @@ class SettingsViewModel : ViewModel() {
                 ProfileRepository.update(buildJsonObject {
                     put("full_name", f.name.trim())
                     if (f.username.isBlank()) put("username", JsonNull) else put("username", f.username.trim())
-                    put("bio", f.bio.trim().ifEmpty { null })
+                    put("bio", f.bio.trim().take(300).ifEmpty { null })
                     put("timezone", f.timezone)
                     put("whatsapp_number", f.whatsapp.trim().ifEmpty { null })
                     if (f.photo.isBlank()) put("profile_photo", JsonNull) else put("profile_photo", f.photo)

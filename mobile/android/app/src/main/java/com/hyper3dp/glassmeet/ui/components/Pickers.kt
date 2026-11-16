@@ -74,7 +74,7 @@ fun DateField(label: String, date: LocalDate?, onClick: () -> Unit, modifier: Mo
 @Composable
 fun NumberField(label: String, value: String, onChange: (String) -> Unit, modifier: Modifier = Modifier, suffix: String? = null, supporting: String? = null) {
     OutlinedTextField(
-        value = value, onValueChange = { onChange(it.filter { c -> c.isDigit() }.take(4)) }, singleLine = true,
+        value = value, onValueChange = { onChange(Format.digits(it).take(4)) }, singleLine = true,
         label = { Text(label) },
         suffix = suffix?.let { { Text(it) } },
         supportingText = supporting?.let { { Text(it) } },

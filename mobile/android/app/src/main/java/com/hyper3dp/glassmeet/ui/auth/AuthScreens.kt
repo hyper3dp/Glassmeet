@@ -139,7 +139,7 @@ private fun PasswordField(value: String, onChange: (String) -> Unit, label: Stri
 @Composable
 private fun CodeField(value: String, onChange: (String) -> Unit, onGo: () -> Unit) {
     OutlinedTextField(
-        value, { onChange(it.filter { c -> c.isDigit() }.take(10)) }, label = { Text("Code") }, singleLine = true,
+        value, { onChange(com.hyper3dp.glassmeet.util.Format.digits(it).take(10)) }, label = { Text("Code") }, singleLine = true,
         textStyle = MaterialTheme.typography.headlineSmall,
         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword, imeAction = ImeAction.Go),
         keyboardActions = KeyboardActions(onGo = { onGo() }),

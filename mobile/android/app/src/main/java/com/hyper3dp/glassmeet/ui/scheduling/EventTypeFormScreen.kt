@@ -168,7 +168,7 @@ private fun FormContent(s: FormUiState, vm: EventTypeFormViewModel, modifier: Mo
                     },
                 )
                 OutlinedTextField(
-                    f.name, { v -> edit { it.copy(name = v.take(120)) } }, label = { Text("Name") }, singleLine = true,
+                    f.name, { v -> edit { it.copy(name = v.take(80)) } }, label = { Text("Name") }, singleLine = true,
                     placeholder = { Text("30 minute meeting") }, modifier = Modifier.fillMaxWidth(),
                 )
                 Text("Duration", style = MaterialTheme.typography.labelLarge)
@@ -188,17 +188,17 @@ private fun FormContent(s: FormUiState, vm: EventTypeFormViewModel, modifier: Mo
                 SelectField("Location", LOCATIONS.map { it.first to it.first }, f.location, { v -> edit { it.copy(location = v) } }, Modifier.fillMaxWidth())
                 when (f.locationKind) {
                     LocationKind.Video -> OutlinedTextField(
-                        f.meetingUrl, { v -> edit { it.copy(meetingUrl = v) } }, label = { Text("Meeting link (optional)") }, singleLine = true,
+                        f.meetingUrl, { v -> edit { it.copy(meetingUrl = v.take(500)) } }, label = { Text("Meeting link (optional)") }, singleLine = true,
                         supportingText = { Text("Leave empty if your connected calendar makes one for each booking.") },
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri), modifier = Modifier.fillMaxWidth(),
                     )
                     LocationKind.Other -> {
                         OutlinedTextField(
-                            f.customLocation, { v -> edit { it.copy(customLocation = v.take(120)) } }, label = { Text("Where") }, singleLine = true,
+                            f.customLocation, { v -> edit { it.copy(customLocation = v.take(80)) } }, label = { Text("Where") }, singleLine = true,
                             modifier = Modifier.fillMaxWidth(),
                         )
                         OutlinedTextField(
-                            f.meetingUrl, { v -> edit { it.copy(meetingUrl = v) } }, label = { Text("Link (optional)") }, singleLine = true,
+                            f.meetingUrl, { v -> edit { it.copy(meetingUrl = v.take(500)) } }, label = { Text("Link (optional)") }, singleLine = true,
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri), modifier = Modifier.fillMaxWidth(),
                         )
                     }
@@ -217,7 +217,7 @@ private fun FormContent(s: FormUiState, vm: EventTypeFormViewModel, modifier: Mo
                             SwitchRow("Save this address", f.saveNewAddress, { v -> edit { it.copy(saveNewAddress = v) } })
                             if (f.saveNewAddress) {
                                 OutlinedTextField(
-                                    f.newAddressLabel, { v -> edit { it.copy(newAddressLabel = v.take(60)) } }, label = { Text("Label (optional)") },
+                                    f.newAddressLabel, { v -> edit { it.copy(newAddressLabel = v.take(40)) } }, label = { Text("Label (optional)") },
                                     placeholder = { Text("Office") }, singleLine = true, modifier = Modifier.fillMaxWidth(),
                                 )
                             }
