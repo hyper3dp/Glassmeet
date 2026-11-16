@@ -113,7 +113,7 @@ enum CalendarAPI {
         let rows: [Feed] = try await supabase.from("cal_feeds").select("token").eq("owner", value: id).execute().value
         if let token = rows.first?.token { return token }
         do {
-            let created: Feed = try await supabase.from("cal_feeds").insert(["owner": AnyJSON.string(id)]).select("token").single().execute().value
+            let created: Feed = try await supabase.from("cal_feeds").insert(["owner": AnyJSON.string(id)] as Row).select("token").single().execute().value
             return created.token
         } catch {
             // another device made it first

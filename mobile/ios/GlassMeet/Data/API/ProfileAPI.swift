@@ -42,7 +42,7 @@ enum ProfileAPI {
     static func seedHoursIfNeeded(_ profile: Profile) async {
         guard profile.hoursSeeded == false, let id = try? API.uid() else { return }
         do {
-            let claimed: [Lossy<Profile>] = try await supabase.from("profiles").update(["hours_seeded": .bool(true)])
+            let claimed: [Lossy<Profile>] = try await supabase.from("profiles").update(["hours_seeded": .bool(true)] as Row)
                 .eq("id", value: id).eq("hours_seeded", value: "false").select().execute().value
             guard !claimed.isEmpty else { return }
             let rules = try await AvailabilityAPI.rules()
@@ -51,7 +51,7 @@ enum ProfileAPI {
             try await supabase.from("availability_rules").insert(rows).execute()
         } catch {
             // let the next launch try again
-            _ = try? await supabase.from("profiles").update(["hours_seeded": .bool(false)]).eq("id", value: id).execute()
+            _ = try? await supabase.from("profiles").update(["hours_seeded": .bool(false)] as Row).eq("id", value: id).execute()
         }
     }
 

@@ -173,11 +173,12 @@ struct EventTypeFormView: View {
     private var location: some View {
         Section {
             Picker("Location", selection: $draft.location) {
-                ForEach(EventTypeDraft.locations, id: \.name) { Text($0.name).tag($0.name) }
+                ForEach(EventTypeDraft.locations.map { $0.name }, id: \.self) { Text($0).tag($0) }
             }
             switch draft.locationKind {
             case .other:
                 TextField("Where, such as Webex or Signal", text: $draft.customLocation)
+                    .maxLength($draft.customLocation, 80)
                 linkField
             case .video:
                 linkField
@@ -198,6 +199,7 @@ struct EventTypeFormView: View {
                     TextField("Street, building, city", text: $draft.address, axis: .vertical)
                         .lineLimit(2...4)
                     TextField("Label, such as Office (optional)", text: $newAddressLabel)
+                        .maxLength($newAddressLabel, 40)
                     Toggle("Save to my addresses", isOn: $saveNewAddress).tint(Theme.primary)
                 }
             }
@@ -227,6 +229,7 @@ struct EventTypeFormView: View {
 
     private var linkField: some View {
         TextField("Meeting link (optional)", text: $draft.meetingURL)
+            .maxLength($draft.meetingURL, 500)
             .keyboardType(.URL)
             .textContentType(.URL)
             .textInputAutocapitalization(.never)

@@ -29,7 +29,7 @@ enum EventTypesAPI {
     }
 
     static func setActive(_ id: UUID, _ active: Bool) async throws {
-        try await supabase.from("event_types").update(["active": .bool(active)], returning: .minimal)
+        try await supabase.from("event_types").update(["active": .bool(active)] as Row, returning: .minimal)
             .eq("id", value: API.key(id)).execute()
     }
 

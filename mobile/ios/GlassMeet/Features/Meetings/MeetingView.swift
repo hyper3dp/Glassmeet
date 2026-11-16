@@ -127,6 +127,7 @@ struct MeetingView: View {
 
             Section {
                 TextField("https://", text: $link)
+                    .maxLength($link, 500)
                     .keyboardType(.URL)
                     .textContentType(.URL)
                     .textInputAutocapitalization(.never)

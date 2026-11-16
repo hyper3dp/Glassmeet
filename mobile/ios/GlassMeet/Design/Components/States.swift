@@ -133,6 +133,13 @@ struct SecondaryButtonStyle: ButtonStyle {
 // MARK: - Alerts and toasts
 
 extension View {
+    /// Caps a text field at the web app's limit (src/lib/inputRules.js LIMITS)
+    func maxLength(_ text: Binding<String>, _ limit: Int) -> some View {
+        onChange(of: text.wrappedValue) { _, new in
+            if new.count > limit { text.wrappedValue = String(new.prefix(limit)) }
+        }
+    }
+
     /// Shows an error once, with OK
     func errorAlert(_ message: Binding<String?>) -> some View {
         alert("Something went wrong", isPresented: Binding(get: { message.wrappedValue != nil }, set: { if !$0 { message.wrappedValue = nil } })) {
