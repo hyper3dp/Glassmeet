@@ -28,11 +28,8 @@ struct HomeView: View {
                     RequestsBanner(count: requests.count) { router.showRequests() }
                 }
 
-                // every booking of the host's, as loaded (BookingsAPI.list caps at 1000)
-                StatsGrid(today: "\(today.count)", upcoming: "\(upcoming.count)",
-                          all: data.bookings.count >= 1000 ? "1000+" : "\(data.bookings.count)",
-                          eventTypes: "\(data.eventTypes.count)")
-
+                // A daily digest first (what's next, then the week), like Calendly's Home;
+                // the numbers come after
                 if data.bookings.isEmpty, data.bookingsState.isLoaded {
                     EmptyHomeCard(event: shareEvent)
                 } else if let next = upcoming.first {
@@ -49,6 +46,16 @@ struct HomeView: View {
                     CreateFirstEventCard()
                 }
 
+                VStack(alignment: .leading, spacing: Theme.Space.s) {
+                    Text("At a glance")
+                        .font(Theme.Typography.title3)
+                        .foregroundStyle(Theme.text)
+                    // every booking of the host's, as loaded (BookingsAPI.list caps at 1000)
+                    StatsGrid(today: "\(today.count)", upcoming: "\(upcoming.count)",
+                              all: data.bookings.count >= 1000 ? "1000+" : "\(data.bookings.count)",
+                              eventTypes: "\(data.eventTypes.count)")
+                }
+
                 if let error = data.bookingsState.error, data.bookings.isEmpty {
                     ErrorStateView(message: error) { await data.loadAll() }
                 }
@@ -62,6 +69,24 @@ struct HomeView: View {
         }
         .navigationTitle("Home")
         .toolbar {
+            // sharing a link is the main thing hosts do on the go
+            ToolbarItem(placement: .topBarTrailing) {
+                if data.eventTypes.contains(where: \.isActive) {
+                    Menu {
+                        Section("Share a booking link") {
+                            ForEach(data.eventTypes.filter(\.isActive)) { event in
+                                ShareLink(item: Backend.bookingURL(event.id),
+                                          message: Text("Book a time with me: \(Backend.bookingURL(event.id).absoluteString)")) {
+                                    Label(event.title, systemImage: "link")
+                                }
+                            }
+                        }
+                    } label: {
+                        Image(systemName: "square.and.arrow.up")
+                    }
+                    .accessibilityLabel("Share a booking link")
+                }
+            }
             ToolbarItem(placement: .topBarTrailing) {
                 NavigationLink(value: Route.analytics) {
                     Image(systemName: "chart.bar.xaxis")

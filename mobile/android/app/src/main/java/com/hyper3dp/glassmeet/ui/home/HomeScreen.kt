@@ -105,25 +105,7 @@ fun HomeScreen(
                     }
                 }
 
-                item {
-                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                            StatTile(d.todayCount.toString(), "Today", Modifier.weight(1f), onClick = onOpenMeetings)
-                            StatTile(d.upcomingCount.toString(), "Upcoming", Modifier.weight(1f), onClick = onOpenMeetings)
-                        }
-                        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                            StatTile(if (d.allCount >= 1000) "1000+" else d.allCount.toString(), "All bookings", Modifier.weight(1f), onClick = onOpenMeetings)
-                            StatTile(d.eventTypeCount.toString(), "Event types", Modifier.weight(1f), onClick = onOpenScheduling)
-                        }
-                        SectionCard(padding = 0.dp) {
-                            NavRow(
-                                title = "Insights", subtitle = "Bookings by month and your busiest times",
-                                icon = Icons.Outlined.Insights, tint = AppTheme.tokens.link, onClick = onOpenAnalytics,
-                            )
-                        }
-                    }
-                }
-
+                // A daily digest first (what's next, then the week), like Calendly's Home; the numbers come after
                 if (d.allCount == 0) {
                     item {
                         SectionCard {
@@ -235,6 +217,26 @@ fun HomeScreen(
                                     Icon(Icons.AutoMirrored.Outlined.OpenInNew, contentDescription = "Open booking page")
                                 }
                             }
+                        }
+                    }
+                }
+
+                item { SectionTitle("At a glance") }
+                item {
+                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                            StatTile(d.todayCount.toString(), "Today", Modifier.weight(1f), onClick = onOpenMeetings)
+                            StatTile(d.upcomingCount.toString(), "Upcoming", Modifier.weight(1f), onClick = onOpenMeetings)
+                        }
+                        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                            StatTile(if (d.allCount >= 1000) "1000+" else d.allCount.toString(), "All bookings", Modifier.weight(1f), onClick = onOpenMeetings)
+                            StatTile(d.eventTypeCount.toString(), "Event types", Modifier.weight(1f), onClick = onOpenScheduling)
+                        }
+                        SectionCard(padding = 0.dp) {
+                            NavRow(
+                                title = "Insights", subtitle = "Bookings by month and your busiest times",
+                                icon = Icons.Outlined.Insights, tint = AppTheme.tokens.link, onClick = onOpenAnalytics,
+                            )
                         }
                     }
                 }
