@@ -8,7 +8,7 @@ authgoogle/
 *.key
 node_modules/  
 dist/  
-data/  
+/data/
 
 # Supabase CLI link state (project ref, database host)
 supabase/.temp/

@@ -7,7 +7,7 @@ Two native host apps that use the same Supabase project as the web app. Guests s
 | `ios/` | iPhone, iOS 26+ | SwiftUI, system tab bar and Liquid Glass, [supabase-swift](https://github.com/supabase/supabase-swift) |
 | `android/` | Android 8+ (API 26) | Kotlin, Jetpack Compose, Material 3, [supabase-kt](https://github.com/supabase-community/supabase-kt) |
 
-Screens in both: sign in, Home, Meetings (and a meeting's page), Scheduling (and the event type form), working hours, Settings.
+Both follow `SPEC.md` (navigation, screens, states, design tokens, sign-in setup): sign in (email, Google, LinkedIn; Apple reserved), create account and verify code, reset password, Home, Meetings and a meeting's page, Scheduling and the full event type form, Availability (weekly hours, date overrides, daily limit, UAE holidays), Analytics, Calendar connections (Google, Microsoft, subscribe feed), Settings (profile, photo, account deletion) and WhatsApp messages.
 
 ## Building
 
