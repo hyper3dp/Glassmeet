@@ -5,6 +5,9 @@ struct MeetingsView: View {
     @Environment(AppData.self) private var data
     @Environment(Router.self) private var router
     @State private var query = ""
+    @State private var toast: String?
+    @State private var error: String?
+    @Environment(\.openURL) private var openURL
 
     var body: some View {
         let zone = session.timeZone
@@ -27,6 +30,20 @@ struct MeetingsView: View {
                     ForEach(group.items) { booking in
                         NavigationLink(value: Route.meeting(booking.id)) {
                             MeetingRow(booking: booking, event: data.eventType(booking.eventTypeID), zone: zone)
+                        }
+                        // quick actions without opening the meeting, like Calendly and Cal.com
+                        .swipeActions(edge: .leading, allowsFullSwipe: true) {
+                            if booking.isPending {
+                                Button { Task { await approve(booking) } } label: { Label("Approve", systemImage: "checkmark") }
+                                    .tint(Theme.success)
+                            }
+                        }
+                        .swipeActions(edge: .trailing, allowsFullSwipe: false) { quickActions(booking, now: now) }
+                        .contextMenu {
+                            if booking.isPending {
+                                Button { Task { await approve(booking) } } label: { Label("Approve", systemImage: "checkmark") }
+                            }
+                            quickActions(booking, now: now)
                         }
                     }
                 } header: {
@@ -66,6 +83,30 @@ struct MeetingsView: View {
         }
         .refreshable { await data.loadBookings() }
         .task { await data.loadAll() }
+        .errorAlert($error)
+        .toast($toast)
+    }
+
+    /// Message the guest on WhatsApp, or join the call while the meeting is still ahead
+    @ViewBuilder private func quickActions(_ b: Booking, now: Date) -> some View {
+        if let link = b.link ?? data.eventType(b.eventTypeID)?.meetingURL, let url = URL(string: link), b.isUpcoming(at: now), !b.isPending {
+            Button { openURL(url) } label: { Label("Join", systemImage: "video.fill") }
+                .tint(Theme.link)
+        }
+        if b.phone != nil {
+            Button { openURL(Messages.whatsAppURL(phone: b.phone, message: "")) } label: { Label("WhatsApp", systemImage: "message.fill") }
+                .tint(Theme.primary)
+        }
+    }
+
+    private func approve(_ b: Booking) async {
+        do {
+            let saved = try await BookingsAPI.approve(b.id)
+            withAnimation { data.update(saved) }
+            toast = "Approved. Open it to message \(b.name)."
+        } catch {
+            self.error = "This request couldn’t be approved. \(error.readable)"
+        }
     }
 
     private func filtered(_ list: [Booking], now: Date) -> [Booking] {

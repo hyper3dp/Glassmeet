@@ -52,6 +52,14 @@ class MeetingsViewModel : LoadingViewModel<MeetingsData>() {
     fun setFilter(f: MeetingFilter) { _filter.value = f }
     fun setQuery(q: String) { _query.value = q }
 
+    /** Approve a request from the list; the list updates through BookingsRepository.changes. */
+    fun approve(id: String, done: (String?) -> Unit) {
+        viewModelScope.launch {
+            val error = runCatching { BookingsRepository.approve(id) }.exceptionOrNull()
+            done(error?.let { "This request couldn't be approved. ${it.message.orEmpty()}".trim() })
+        }
+    }
+
     override suspend fun fetch(): MeetingsData {
         val (bookings, events) = BookingsRepository.both({ BookingsRepository.list() }, { EventTypesRepository.list() })
         val profile = ProfileRepository.ensureLoaded()

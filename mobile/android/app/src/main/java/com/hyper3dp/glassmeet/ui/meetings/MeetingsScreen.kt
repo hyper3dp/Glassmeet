@@ -2,7 +2,18 @@
 
 package com.hyper3dp.glassmeet.ui.meetings
 
+import android.widget.Toast
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.layout.Box
+import androidx.compose.material.icons.automirrored.outlined.Chat
+import androidx.compose.material.icons.outlined.Check
+import androidx.compose.material.icons.outlined.Videocam
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.ui.platform.LocalContext
+import com.hyper3dp.glassmeet.data.Booking
+import com.hyper3dp.glassmeet.data.WhatsAppRepository
+import com.hyper3dp.glassmeet.util.Intents
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -153,13 +164,51 @@ fun MeetingsScreen(onOpenMeeting: (String) -> Unit) {
                                     )
                                     items.forEachIndexed { i, b ->
                                         if (i > 0) HorizontalDivider(Modifier.padding(start = 72.dp), color = AppTheme.tokens.border)
-                                        MeetingRow(b, d.zone, d.colors[b.eventTypeId]) { onOpenMeeting(b.id) }
+                                        QuickActionsRow(b, d, vm, onOpenMeeting)
                                     }
                                 }
                             }
                         }
                     }
                 }
+            }
+        }
+    }
+}
+
+/** A meeting row whose long press offers Approve, Join and WhatsApp without opening it, like Calendly and Cal.com */
+@Composable
+private fun QuickActionsRow(b: Booking, d: MeetingsData, vm: MeetingsViewModel, onOpenMeeting: (String) -> Unit) {
+    val context = LocalContext.current
+    var menu by remember { mutableStateOf(false) }
+    val link = b.meetingUrl?.takeIf { it.isNotBlank() && b.isUpcoming() && !b.isPending }
+    val phone = b.guestPhone?.takeIf { it.isNotBlank() }
+    val hasActions = b.isPending || link != null || phone != null
+    Box {
+        MeetingRow(b, d.zone, d.colors[b.eventTypeId], onLongClick = if (hasActions) ({ menu = true }) else null) { onOpenMeeting(b.id) }
+        DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
+            if (b.isPending) {
+                DropdownMenuItem(
+                    text = { Text("Approve") }, leadingIcon = { Icon(Icons.Outlined.Check, contentDescription = null) },
+                    onClick = {
+                        menu = false
+                        vm.approve(b.id) { error ->
+                            Toast.makeText(context, error ?: "Approved. Open it to message ${b.name}.", Toast.LENGTH_SHORT).show()
+                        }
+                    },
+                )
+            }
+            if (link != null) {
+                DropdownMenuItem(
+                    text = { Text("Join") }, leadingIcon = { Icon(Icons.Outlined.Videocam, contentDescription = null) },
+                    onClick = { menu = false; Intents.open(context, link) },
+                )
+            }
+            if (phone != null) {
+                DropdownMenuItem(
+                    text = { Text("WhatsApp") }, leadingIcon = { Icon(Icons.AutoMirrored.Outlined.Chat, contentDescription = null) },
+                    onClick = { menu = false; Intents.open(context, WhatsAppRepository.whatsAppLink(phone, "")) },
+                )
             }
         }
     }

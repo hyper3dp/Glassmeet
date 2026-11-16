@@ -1,6 +1,7 @@
 package com.hyper3dp.glassmeet.ui.meetings
 
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -24,11 +25,12 @@ import com.hyper3dp.glassmeet.ui.theme.parseHexColor
 import com.hyper3dp.glassmeet.util.Format
 import java.time.ZoneId
 
-/** One meeting in a list: initials, guest, time range, event with its colour dot, status. */
+/** One meeting in a list: initials, guest, time range, event with its colour dot, status. A long press opens quick actions. */
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun MeetingRow(booking: Booking, zone: ZoneId, eventColor: String?, onClick: () -> Unit) {
+fun MeetingRow(booking: Booking, zone: ZoneId, eventColor: String?, onLongClick: (() -> Unit)? = null, onClick: () -> Unit) {
     Row(
-        Modifier.fillMaxWidth().heightIn(min = 72.dp).clickable(onClick = onClick).padding(horizontal = 16.dp, vertical = 12.dp),
+        Modifier.fillMaxWidth().heightIn(min = 72.dp).combinedClickable(onLongClick = onLongClick, onLongClickLabel = if (onLongClick != null) "Quick actions" else null, onClick = onClick).padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Avatar(booking.name, size = 40.dp)
