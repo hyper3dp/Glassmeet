@@ -12,7 +12,7 @@ import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.ui.platform.LocalContext
 import com.hyper3dp.glassmeet.data.Booking
-import com.hyper3dp.glassmeet.data.WhatsAppRepository
+import com.hyper3dp.glassmeet.data.Messages
 import com.hyper3dp.glassmeet.util.Intents
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -207,7 +207,7 @@ private fun QuickActionsRow(b: Booking, d: MeetingsData, vm: MeetingsViewModel, 
             if (phone != null) {
                 DropdownMenuItem(
                     text = { Text("WhatsApp") }, leadingIcon = { Icon(Icons.AutoMirrored.Outlined.Chat, contentDescription = null) },
-                    onClick = { menu = false; Intents.open(context, WhatsAppRepository.whatsAppLink(phone, "")) },
+                    onClick = { menu = false; Intents.open(context, Messages.whatsAppLink(phone, "")) },
                 )
             }
         }
