@@ -28,23 +28,6 @@ targets:
       - package: Supabase
         product: Supabase
     scheme: {}
-    postBuildScripts:
-      # One-off diagnostic, read from the artifact sizes: an empty simulator app means the
-      # .icon bundle isn't a Resources file of type iconcomposer; an empty device app means Info.plist lacks
-      # the URL scheme, display name or launch screen.
-      - name: Bundle diagnostic
-        basedOnDependencyAnalysis: false
-        script: |
-          app="$TARGET_BUILD_DIR/$WRAPPER_NAME"
-          p="$app/Info.plist"
-          if [ "$PLATFORM_NAME" = "iphonesimulator" ]; then
-            pbx="$PROJECT_FILE_PATH/project.pbxproj"
-            if ! grep -q 'AppIcon.icon in Resources' "$pbx" || ! grep 'path = AppIcon.icon' "$pbx" | grep -q 'iconcomposer'; then rm -rf "$app"/*; fi
-          else
-            scheme=$(/usr/libexec/PlistBuddy -c "Print :CFBundleURLTypes:0:CFBundleURLSchemes:0" "$p" 2>/dev/null)
-            name=$(/usr/libexec/PlistBuddy -c "Print :CFBundleDisplayName" "$p" 2>/dev/null)
-            if [ "$scheme" != "glassmeet" ] || [ "$name" != "GlassMeet" ] || ! /usr/libexec/PlistBuddy -c "Print :UILaunchScreen" "$p" >/dev/null 2>&1; then rm -rf "$app"/*; fi
-          fi
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.hyper3dp.glassmeet
