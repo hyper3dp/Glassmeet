@@ -28,22 +28,6 @@ targets:
       - package: Supabase
         product: Supabase
     scheme: {}
-    postBuildScripts:
-      # one-off check: fail the build (with a readable error) unless AppIcon.icon is compiled
-      - name: Icon check
-        basedOnDependencyAnalysis: false
-        script: |
-          app="$TARGET_BUILD_DIR/$WRAPPER_NAME"
-          pbx="$PROJECT_FILE_PATH/project.pbxproj"
-          ref=$(grep -m1 'path = AppIcon.icon' "$pbx" | tr -s ' \t' ' ' | cut -c1-200)
-          inres=$(grep -c 'AppIcon.icon in Resources' "$pbx")
-          raw=no; [ -e "$app/AppIcon.icon" ] && raw=yes
-          iconname=$(/usr/libexec/PlistBuddy -c "Print :CFBundleIcons:CFBundlePrimaryIcon:CFBundleIconName" "$app/Info.plist" 2>/dev/null || echo none)
-          if [ "$inres" = "0" ] || [ "$raw" = "yes" ] || ! echo "$ref" | grep -q iconcomposer; then
-            echo "$SRCROOT/project.yml:1:1: error: AppIcon.icon not compiled: inResources=$inres raw=$raw iconName=$iconname ref=[$ref]"
-            rm -f "$app/$EXECUTABLE_NAME"
-            exit 1
-          fi
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.hyper3dp.glassmeet
