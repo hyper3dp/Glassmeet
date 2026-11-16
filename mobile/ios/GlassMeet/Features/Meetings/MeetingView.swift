@@ -158,7 +158,7 @@ struct MeetingView: View {
         .themedList()
         .refreshable { await load() }
         // The page's main action floats over the content on Liquid Glass
-        .safeAreaBar(edge: .bottom) {
+        .floatingBar(edge: .bottom) {
             actionBar(b)
         }
         .confirmationDialog(confirming == .decline ? "Decline this request?" : "Cancel this meeting?",
@@ -191,24 +191,24 @@ struct MeetingView: View {
     @ViewBuilder private func actionBar(_ b: Booking) -> some View {
         let showSend = !b.isPending && b.phone != nil && !message.isEmpty
         if b.isPending || showSend {
-            GlassEffectContainer(spacing: Theme.Space.s) {
+            GlassGroup(spacing: Theme.Space.s) {
                 HStack(spacing: Theme.Space.s) {
                     if b.isPending {
                         Button(role: .destructive) { confirming = .decline } label: {
                             Text("Decline").frame(maxWidth: .infinity)
                         }
-                        .buttonStyle(.glass)
+                        .glassButton()
                         Button { Task { await change(.approve) } } label: {
                             Text("Approve").fontWeight(.semibold).frame(maxWidth: .infinity)
                         }
-                        .buttonStyle(.glassProminent)
+                        .glassButton(prominent: true)
                     } else {
                         Button { openURL(Messages.whatsAppURL(phone: b.phone, message: message)) } label: {
                             Label("Send on WhatsApp", systemImage: "paperplane.fill")
                                 .fontWeight(.semibold)
                                 .frame(maxWidth: .infinity)
                         }
-                        .buttonStyle(.glassProminent)
+                        .glassButton(prominent: true)
                     }
                 }
                 .controlSize(.large)

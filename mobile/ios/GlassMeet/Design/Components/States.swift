@@ -157,7 +157,7 @@ extension View {
                     .font(.subheadline.weight(.semibold))
                     .padding(.horizontal, Theme.Space.m)
                     .padding(.vertical, Theme.Space.s)
-                    .glassEffect(.regular, in: Capsule())
+                    .glassCapsule()
                     .padding(.top, Theme.Space.xs)
                     .transition(.move(edge: .top).combined(with: .opacity))
                     .task(id: text) {

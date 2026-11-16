@@ -92,7 +92,7 @@ struct EventTypeFormView: View {
         .scrollContentBackground(.hidden)
         .background(Theme.background)
         .scrollDismissesKeyboard(.interactively)
-        .safeAreaBar(edge: .bottom) { actionBar }
+        .floatingBar(edge: .bottom) { actionBar }
         .animation(.snappy, value: draft.kind)
         .animation(.snappy, value: draft.useWorkingHours)
         .animation(.snappy, value: draft.repeats)
@@ -109,17 +109,17 @@ struct EventTypeFormView: View {
                     .padding(.vertical, Theme.Space.xs)
                     .background(Theme.surface, in: Capsule())
             }
-            GlassEffectContainer(spacing: Theme.Space.s) {
+            GlassGroup(spacing: Theme.Space.s) {
                 HStack(spacing: Theme.Space.s) {
                     Button { Task { await saveTemplate() } } label: {
                         Text(savingTemplate ? "Saving…" : "Save as template").frame(maxWidth: .infinity)
                     }
-                    .buttonStyle(.glass)
+                    .glassButton()
                     .disabled(savingTemplate)
                     Button { Task { await save() } } label: {
                         Text(saving ? "Saving…" : editingID == nil ? "Create" : "Save").fontWeight(.semibold).frame(maxWidth: .infinity)
                     }
-                    .buttonStyle(.glassProminent)
+                    .glassButton(prominent: true)
                     .disabled(saving)
                 }
                 .controlSize(.large)

@@ -69,24 +69,40 @@ struct MainTabView: View {
         @Bindable var router = router
         // The system tab bar floats over the content on Liquid Glass and shrinks while
         // scrolling down. Creating things is an action, so it lives in each page's toolbar.
-        TabView(selection: $router.tab) {
-            Tab("Home", systemImage: "house", value: AppTab.home) {
+        if #available(iOS 18, *) {
+            TabView(selection: $router.tab) {
+                Tab("Home", systemImage: "house", value: AppTab.home) {
+                    TabStack(path: $router.homePath) { HomeView() }
+                }
+                Tab("Meetings", systemImage: "person.2", value: AppTab.meetings) {
+                    TabStack(path: $router.meetingsPath) { MeetingsView() }
+                }
+                Tab("Scheduling", systemImage: "link", value: AppTab.scheduling) {
+                    TabStack(path: $router.schedulingPath) { SchedulingView() }
+                }
+                Tab("Availability", systemImage: "clock", value: AppTab.availability) {
+                    TabStack(path: $router.availabilityPath) { AvailabilityView() }
+                }
+                Tab("Settings", systemImage: "gearshape", value: AppTab.settings) {
+                    TabStack(path: $router.settingsPath) { SettingsView() }
+                }
+            }
+            .minimizeTabBarOnScroll()
+        } else {
+            // iOS 17 has no Tab type, so each page is tagged instead
+            TabView(selection: $router.tab) {
                 TabStack(path: $router.homePath) { HomeView() }
-            }
-            Tab("Meetings", systemImage: "person.2", value: AppTab.meetings) {
+                    .tabItem { Label("Home", systemImage: "house") }.tag(AppTab.home)
                 TabStack(path: $router.meetingsPath) { MeetingsView() }
-            }
-            Tab("Scheduling", systemImage: "link", value: AppTab.scheduling) {
+                    .tabItem { Label("Meetings", systemImage: "person.2") }.tag(AppTab.meetings)
                 TabStack(path: $router.schedulingPath) { SchedulingView() }
-            }
-            Tab("Availability", systemImage: "clock", value: AppTab.availability) {
+                    .tabItem { Label("Scheduling", systemImage: "link") }.tag(AppTab.scheduling)
                 TabStack(path: $router.availabilityPath) { AvailabilityView() }
-            }
-            Tab("Settings", systemImage: "gearshape", value: AppTab.settings) {
+                    .tabItem { Label("Availability", systemImage: "clock") }.tag(AppTab.availability)
                 TabStack(path: $router.settingsPath) { SettingsView() }
+                    .tabItem { Label("Settings", systemImage: "gearshape") }.tag(AppTab.settings)
             }
         }
-        .tabBarMinimizeBehavior(.onScrollDown)
     }
 }
 

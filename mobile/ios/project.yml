@@ -4,7 +4,8 @@ name: GlassMeet
 options:
   bundleIdPrefix: com.hyper3dp
   deploymentTarget:
-    iOS: "26.0"
+    # iOS 17 and later (iPhone XS / XR and newer); Liquid Glass turns on from iOS 26
+    iOS: "17.0"
   createIntermediateGroups: true
 packages:
   Supabase:

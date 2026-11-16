@@ -47,7 +47,7 @@ struct MeetingsView: View {
         }
         .navigationTitle("Meetings")
         .searchable(text: $query, prompt: "Name, email, event or phone")
-        .safeAreaBar(edge: .top) {
+        .floatingBar(edge: .top) {
             if query.isEmpty {
                 // chips scroll sideways, so the requests count never truncates at 375 pt
                 ScrollView(.horizontal) {
