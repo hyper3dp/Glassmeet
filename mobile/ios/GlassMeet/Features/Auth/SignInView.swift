@@ -39,8 +39,6 @@ struct SignInView: View {
                 ProviderButton(title: "Continue with LinkedIn", icon: "link.circle.fill", busy: busy == .linkedIn) {
                     Task { await oauth(.linkedinOIDC, .linkedIn) }
                 }
-                ProviderButton(title: "Continue with Apple", icon: "apple.logo", busy: false, caption: "Coming soon") {}
-                    .disabled(true)
             }
             .disabled(busy != nil)
 
@@ -103,7 +101,6 @@ private struct ProviderButton: View {
     var title: String
     var icon: String
     var busy: Bool
-    var caption: String? = nil
     var action: () -> Void
     @Environment(\.isEnabled) private var isEnabled
 
@@ -112,12 +109,6 @@ private struct ProviderButton: View {
             HStack(spacing: Theme.Space.s) {
                 Image(systemName: icon).font(.title3).frame(width: 24)
                 Text(title).font(.headline)
-                if let caption {
-                    Text(caption)
-                        .font(.caption.weight(.semibold))
-                        .padding(.horizontal, 8).padding(.vertical, 2)
-                        .background(Theme.surfaceRaised, in: Capsule())
-                }
                 Spacer(minLength: 0)
                 if busy { ProgressView() }
             }
@@ -129,6 +120,5 @@ private struct ProviderButton: View {
             .contentShape(Capsule())
         }
         .buttonStyle(.plain)
-        .accessibilityHint(caption ?? "")
     }
 }

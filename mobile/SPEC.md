@@ -27,7 +27,6 @@ Creating something is an action, so it lives in the top bar (iOS toolbar `+` but
 - Email, Password, primary **Sign in**.
 - Divider "or".
 - **Continue with Google**, **Continue with LinkedIn** (Supabase OAuth providers `google` and `linkedin_oidc`).
-- **Continue with Apple**: shown but disabled, with the caption "Coming soon". Not wired.
 - Links: Forgot password, Create an account.
 - Create account: name, email, password -> Verify code (6 to 10 digit code from email, Resend) -> signed in.
 - Reset password: email -> code -> new password.

@@ -180,11 +180,6 @@ fun SignInScreen(onCreateAccount: () -> Unit, onForgotPassword: () -> Unit, onVe
 
         ProviderButton("Continue with Google", busy = state.busyProvider == "google", enabled = !state.busy, onClick = vm::google)
         ProviderButton("Continue with LinkedIn", busy = state.busyProvider == "linkedin", enabled = !state.busy, onClick = vm::linkedIn)
-        Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
-            ProviderButton("Continue with Apple", busy = false, enabled = false, onClick = {})
-            Spacer(Modifier.height(4.dp))
-            HintText("Coming soon")
-        }
 
         Spacer(Modifier.height(8.dp))
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
