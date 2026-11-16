@@ -63,11 +63,13 @@ struct IconTile: View {
     var systemImage: String
     var color: Color = Theme.primary
     var size: CGFloat = 30
+    /// onPrimary on the primary token (dark text in dark mode); pass .white on fixed brand colours
+    var glyph: Color = Theme.onPrimary
 
     var body: some View {
         Image(systemName: systemImage)
             .font(.system(size: size * 0.5, weight: .semibold))
-            .foregroundStyle(.white)
+            .foregroundStyle(glyph)
             .frame(width: size, height: size)
             .background(color, in: .rect(cornerRadius: size * 0.26))
             .accessibilityHidden(true)
@@ -79,12 +81,13 @@ struct SettingsLabel: View {
     var title: String
     var systemImage: String
     var color: Color = Theme.primary
+    var glyph: Color = Theme.onPrimary
 
     var body: some View {
         Label {
             Text(title).foregroundStyle(Theme.text)
         } icon: {
-            IconTile(systemImage: systemImage, color: color)
+            IconTile(systemImage: systemImage, color: color, glyph: glyph)
         }
     }
 }
@@ -157,7 +160,9 @@ struct ChoiceChip: View {
                 .frame(minHeight: 36)
                 .background(selected ? Theme.primarySoft : Theme.surfaceRaised, in: Capsule())
                 .overlay(Capsule().strokeBorder(selected ? Theme.primary : .clear, lineWidth: 1))
-                .contentShape(Capsule())
+                // 36 pt to look at, 44 pt to tap
+                .frame(minHeight: Theme.minTouch)
+                .contentShape(.rect)
         }
         .buttonStyle(.plain)
         .accessibilityAddTraits(selected ? .isSelected : [])

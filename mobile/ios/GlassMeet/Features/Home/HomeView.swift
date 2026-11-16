@@ -11,10 +11,11 @@ struct HomeView: View {
         let zone = session.timeZone
         let now = Date.now
         let cal = Fmt.calendar(zone)
-        let live = data.bookings.filter { !$0.isCancelled && !$0.isDeclined }
-        let upcoming = live.filter { $0.isUpcoming(at: now) }.sorted { $0.start < $1.start }
-        let today = upcoming.filter { cal.isDate($0.start, inSameDayAs: now) }
-        let requests = data.bookings.filter { $0.isPending && !$0.isOver(at: now) }
+        // like the web dashboard: requests waiting for approval aren't meetings yet
+        let on = data.bookings.filter { $0.status == "confirmed" && $0.approvalStatus != "pending" && $0.approvalStatus != "declined" }
+        let upcoming = on.filter { $0.end >= now }.sorted { $0.start < $1.start }
+        let today = on.filter { cal.isDate($0.start, inSameDayAs: now) }
+        let requests = data.bookings.filter(\.isPending)
         let weekEnd = cal.date(byAdding: .day, value: 7, to: cal.startOfDay(for: now)) ?? now
         let week = upcoming.filter { $0.start < weekEnd }
         let shareEvent = data.eventTypes.first(where: \.isActive)
@@ -27,7 +28,10 @@ struct HomeView: View {
                     RequestsBanner(count: requests.count) { router.showRequests() }
                 }
 
-                StatsGrid(today: today.count, upcoming: upcoming.count, all: data.bookings.count, eventTypes: data.eventTypes.count)
+                // every booking of the host's, as loaded (BookingsAPI.list caps at 1000)
+                StatsGrid(today: "\(today.count)", upcoming: "\(upcoming.count)",
+                          all: data.bookings.count >= 1000 ? "1000+" : "\(data.bookings.count)",
+                          eventTypes: "\(data.eventTypes.count)")
 
                 if data.bookings.isEmpty, data.bookingsState.isLoaded {
                     EmptyHomeCard(event: shareEvent)
@@ -121,10 +125,10 @@ private struct RequestsBanner: View {
 }
 
 private struct StatsGrid: View {
-    var today: Int
-    var upcoming: Int
-    var all: Int
-    var eventTypes: Int
+    var today: String
+    var upcoming: String
+    var all: String
+    var eventTypes: String
 
     var body: some View {
         let columns = [GridItem(.flexible(), spacing: Theme.Space.s), GridItem(.flexible(), spacing: Theme.Space.s)]
@@ -152,7 +156,7 @@ private struct StatsGrid: View {
 
 private struct StatTile: View {
     var title: String
-    var value: Int
+    var value: String
     var systemImage: String
 
     var body: some View {
@@ -160,7 +164,7 @@ private struct StatTile: View {
             Image(systemName: systemImage)
                 .font(.subheadline.weight(.semibold))
                 .foregroundStyle(Theme.link)
-            Text("\(value)")
+            Text(value)
                 .font(Theme.Typography.stat)
                 .foregroundStyle(Theme.text)
                 .contentTransition(.numericText())

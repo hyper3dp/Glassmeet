@@ -437,7 +437,7 @@ private struct ProviderHeader: View {
 
     var body: some View {
         HStack(spacing: Theme.Space.s) {
-            IconTile(systemImage: systemImage, color: color, size: 40)
+            IconTile(systemImage: systemImage, color: color, size: 40, glyph: .white)
             VStack(alignment: .leading, spacing: 2) {
                 Text(name).font(.headline).foregroundStyle(Theme.text)
                 Text(status).font(.subheadline).foregroundStyle(statusColor).lineLimit(1)

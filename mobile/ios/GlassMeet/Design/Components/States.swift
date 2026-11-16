@@ -124,7 +124,9 @@ struct SecondaryButtonStyle: ButtonStyle {
             .frame(minHeight: compact ? 36 : 50)
             .frame(maxWidth: compact ? nil : .infinity)
             .background(Theme.primarySoft.opacity(configuration.isPressed ? 0.7 : 1), in: Capsule())
-            .contentShape(Capsule())
+            // compact is 36 pt to look at, 44 pt to tap
+            .frame(minHeight: Theme.minTouch)
+            .contentShape(.rect)
     }
 }
 

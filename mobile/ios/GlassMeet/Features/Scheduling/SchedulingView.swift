@@ -96,7 +96,7 @@ struct SchedulingView: View {
 
     private func saveTemplate(_ event: EventType) async {
         do {
-            _ = try await EventTypesAPI.saveTemplate(name: event.title, data: EventTypesAPI.fields(of: event))
+            _ = try await EventTypesAPI.saveTemplate(name: event.name ?? "", data: EventTypesAPI.fields(of: event))
             toast = "Saved as a template"
         } catch {
             self.error = "Couldn’t save the template. \(error.readable)"

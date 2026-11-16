@@ -46,7 +46,14 @@ enum EventTypesAPI {
         return rows?.unwrapped() ?? []
     }
 
-    static func saveTemplate(name: String, data: Row) async throws -> EventTemplate {
+    /// event_templates.name must be 1-80 characters
+    static func templateName(_ raw: String) -> String {
+        let name = String(raw.trimmingCharacters(in: .whitespacesAndNewlines).prefix(80)).trimmingCharacters(in: .whitespaces)
+        return name.isEmpty ? "Untitled template" : name
+    }
+
+    static func saveTemplate(name raw: String, data: Row) async throws -> EventTemplate {
+        let name = templateName(raw)
         var fields = data
         fields["name"] = .string(name)
         let row: Row = ["name": .string(name), "data": .object(fields)]

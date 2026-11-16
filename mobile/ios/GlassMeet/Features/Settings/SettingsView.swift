@@ -36,13 +36,13 @@ struct SettingsView: View {
 
             Section {
                 NavigationLink(value: Route.whatsApp) {
-                    SettingsLabel(title: "WhatsApp messages", systemImage: "message.fill", color: Color(uiColor: UIColor(hex: 0x25D366)))
+                    SettingsLabel(title: "WhatsApp messages", systemImage: "message.fill", color: Color(uiColor: UIColor(hex: 0x25D366)), glyph: .white)
                 }
                 NavigationLink(value: Route.calendarConnections) {
                     SettingsLabel(title: "Calendar connections", systemImage: "calendar", color: Theme.primary)
                 }
                 NavigationLink(value: Route.addresses) {
-                    SettingsLabel(title: "Addresses", systemImage: "mappin.and.ellipse", color: Color(uiColor: UIColor(hex: 0xF29D38)))
+                    SettingsLabel(title: "Addresses", systemImage: "mappin.and.ellipse", color: Color(uiColor: UIColor(hex: 0xF29D38)), glyph: .white)
                 }
             }
             .listRowBackground(Theme.surface)
@@ -50,7 +50,7 @@ struct SettingsView: View {
             Section {
                 Button { Task { await sendReset() } } label: {
                     HStack {
-                        SettingsLabel(title: "Reset password", systemImage: "key.fill", color: Color(uiColor: UIColor(hex: 0x8E8E93)))
+                        SettingsLabel(title: "Reset password", systemImage: "key.fill", color: Color(uiColor: UIColor(hex: 0x8E8E93)), glyph: .white)
                         Spacer()
                         if sendingReset { ProgressView() }
                     }
@@ -63,13 +63,13 @@ struct SettingsView: View {
 
             Section {
                 Link(destination: Backend.web("dashboard")) {
-                    SettingsLabel(title: "Open GlassMeet on the web", systemImage: "safari.fill", color: Color(uiColor: UIColor(hex: 0x0A84FF)))
+                    SettingsLabel(title: "Open GlassMeet on the web", systemImage: "safari.fill", color: Color(uiColor: UIColor(hex: 0x0A84FF)), glyph: .white)
                 }
                 Link(destination: Backend.web("privacy")) {
-                    SettingsLabel(title: "Privacy Policy", systemImage: "hand.raised.fill", color: Color(uiColor: UIColor(hex: 0x5E5CE6)))
+                    SettingsLabel(title: "Privacy Policy", systemImage: "hand.raised.fill", color: Color(uiColor: UIColor(hex: 0x5E5CE6)), glyph: .white)
                 }
                 Link(destination: Backend.web("terms")) {
-                    SettingsLabel(title: "Terms of Service", systemImage: "doc.text.fill", color: Color(uiColor: UIColor(hex: 0x8E8E93)))
+                    SettingsLabel(title: "Terms of Service", systemImage: "doc.text.fill", color: Color(uiColor: UIColor(hex: 0x8E8E93)), glyph: .white)
                 }
             }
             .listRowBackground(Theme.surface)

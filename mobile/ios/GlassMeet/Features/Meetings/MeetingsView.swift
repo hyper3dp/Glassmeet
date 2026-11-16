@@ -7,7 +7,6 @@ struct MeetingsView: View {
     @State private var query = ""
 
     var body: some View {
-        @Bindable var router = router
         let zone = session.timeZone
         let now = Date.now
         let kept = data.bookings.filter { !$0.isExpiredCancellation(at: now) }
@@ -50,15 +49,19 @@ struct MeetingsView: View {
         .searchable(text: $query, prompt: "Name, email, event or phone")
         .safeAreaBar(edge: .top) {
             if query.isEmpty {
-                Picker("Show", selection: $router.meetingFilter) {
-                    Text("Upcoming").tag(MeetingFilter.upcoming)
-                    Text(requestCount > 0 ? "Requests (\(requestCount))" : "Requests").tag(MeetingFilter.requests)
-                    Text("Past").tag(MeetingFilter.past)
-                    Text("Cancelled").tag(MeetingFilter.cancelled)
+                // chips scroll sideways, so the requests count never truncates at 375 pt
+                ScrollView(.horizontal) {
+                    HStack(spacing: Theme.Space.xs) {
+                        FilterChip(title: "Upcoming", selected: router.meetingFilter == .upcoming) { router.meetingFilter = .upcoming }
+                        FilterChip(title: "Requests", count: requestCount, selected: router.meetingFilter == .requests) { router.meetingFilter = .requests }
+                        FilterChip(title: "Past", selected: router.meetingFilter == .past) { router.meetingFilter = .past }
+                        FilterChip(title: "Cancelled", selected: router.meetingFilter == .cancelled) { router.meetingFilter = .cancelled }
+                    }
+                    .padding(.horizontal, Theme.Space.m)
                 }
-                .pickerStyle(.segmented)
-                .padding(.horizontal, Theme.Space.m)
-                .padding(.bottom, Theme.Space.xs)
+                .scrollIndicators(.hidden)
+                .padding(.bottom, Theme.Space.xxs)
+                .sensoryFeedback(.selection, trigger: router.meetingFilter)
             }
         }
         .refreshable { await data.loadBookings() }
@@ -116,6 +119,40 @@ struct MeetingsView: View {
                                message: "Cancelled and declined meetings show here for two days.")
             }
         }
+    }
+}
+
+/// A filter capsule with an optional count badge (Requests 3)
+private struct FilterChip: View {
+    var title: String
+    var count: Int = 0
+    var selected: Bool
+    var action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 6) {
+                Text(title).font(.subheadline.weight(.semibold))
+                if count > 0 {
+                    Text("\(count)")
+                        .font(.caption.weight(.bold).monospacedDigit())
+                        .foregroundStyle(selected ? Theme.primary : Theme.onPrimary)
+                        .padding(.horizontal, 6)
+                        .frame(minWidth: 20, minHeight: 20)
+                        .background(selected ? Theme.onPrimary : Theme.warning, in: Capsule())
+                }
+            }
+            .foregroundStyle(selected ? Theme.onPrimary : Theme.text)
+            .padding(.horizontal, 14)
+            .frame(minHeight: 36)
+            .background(selected ? Theme.primary : Theme.surface, in: Capsule())
+            .overlay(Capsule().strokeBorder(selected ? .clear : Theme.border, lineWidth: 1))
+            .frame(minHeight: Theme.minTouch)
+            .contentShape(.rect)
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(count > 0 ? "\(title), \(count)" : title)
+        .accessibilityAddTraits(selected ? .isSelected : [])
     }
 }
 

@@ -62,7 +62,9 @@ struct ProfileView: View {
 
             Section("Profile") {
                 LabeledField(title: "Name") {
-                    TextField("Your name", text: $name).textContentType(.name)
+                    TextField("Your name", text: $name)
+                        .textContentType(.name)
+                        .onChange(of: name) { _, new in if new.count > 80 { name = String(new.prefix(80)) } }
                 }
                 LabeledField(title: "Username") {
                     TextField("username", text: $username)
