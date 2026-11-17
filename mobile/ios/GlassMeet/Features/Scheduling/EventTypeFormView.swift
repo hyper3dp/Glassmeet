@@ -453,15 +453,13 @@ struct EventTypeFormView: View {
                 }
             }
             .tint(Theme.primary)
-            Toggle(isOn: $draft.active) {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Bookable")
-                    Text("Guests can book this event from its link.").font(.footnote).foregroundStyle(Theme.textSecondary)
-                }
-            }
-            .tint(Theme.primary)
         } header: {
             Text("Options")
+        } footer: {
+            // on and off live in the event's More menu on Scheduling
+            if !draft.active {
+                Text("This event is turned off. Turn it on from its More menu in Scheduling so guests can book it.")
+            }
         }
         .listRowBackground(Theme.surface)
     }

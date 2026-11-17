@@ -9,6 +9,7 @@ struct SettingsView: View {
     @State private var sendingReset = false
     @State private var error: String?
     @State private var toast: String?
+    @State private var browsing: URL?
 
     var body: some View {
         List {
@@ -35,14 +36,20 @@ struct SettingsView: View {
             .listRowBackground(Theme.surface)
 
             Section {
+                NavigationLink(value: Route.availability) {
+                    SettingsLabel(title: "Availability", systemImage: "clock.fill", color: Theme.primary)
+                }
+                NavigationLink(value: Route.notifications) {
+                    SettingsLabel(title: "Booking messages", systemImage: "bell.badge.fill", color: Color(uiColor: UIColor(hex: 0xFF3B30)), glyph: .white)
+                }
                 NavigationLink(value: Route.whatsApp) {
-                    SettingsLabel(title: "WhatsApp messages", systemImage: "message.fill", color: Color(uiColor: UIColor(hex: 0x25D366)), glyph: .white)
+                    SettingsLabel(title: "WhatsApp messages", systemImage: "bubble.left.and.text.bubble.right.fill", color: Color(uiColor: UIColor(hex: 0x1FAF55)), glyph: .white)
                 }
                 NavigationLink(value: Route.calendarConnections) {
-                    SettingsLabel(title: "Calendar connections", systemImage: "calendar", color: Theme.primary)
+                    SettingsLabel(title: "Calendar connections", systemImage: "calendar.badge.checkmark", color: Color(uiColor: UIColor(hex: 0x0A84FF)), glyph: .white)
                 }
                 NavigationLink(value: Route.addresses) {
-                    SettingsLabel(title: "Addresses", systemImage: "mappin.and.ellipse", color: Color(uiColor: UIColor(hex: 0xF29D38)), glyph: .white)
+                    SettingsLabel(title: "Meeting addresses", systemImage: "mappin.circle.fill", color: Color(uiColor: UIColor(hex: 0xF29D38)), glyph: .white)
                 }
             }
             .listRowBackground(Theme.surface)
@@ -50,7 +57,7 @@ struct SettingsView: View {
             Section {
                 Button { Task { await sendReset() } } label: {
                     HStack {
-                        SettingsLabel(title: "Reset password", systemImage: "key.fill", color: Color(uiColor: UIColor(hex: 0x8E8E93)), glyph: .white)
+                        SettingsLabel(title: "Change password", systemImage: "lock.rotation", color: Color(uiColor: UIColor(hex: 0x8E8E93)), glyph: .white)
                         Spacer()
                         if sendingReset { ProgressView() }
                     }
@@ -63,13 +70,17 @@ struct SettingsView: View {
 
             Section {
                 Link(destination: Backend.web("dashboard")) {
-                    SettingsLabel(title: "Open GlassMeet on the web", systemImage: "safari.fill", color: Color(uiColor: UIColor(hex: 0x0A84FF)), glyph: .white)
+                    HStack {
+                        SettingsLabel(title: "Open GlassMeet on the web", systemImage: "globe", color: Color(uiColor: UIColor(hex: 0x0A84FF)), glyph: .white)
+                        Spacer()
+                        Image(systemName: "arrow.up.forward").font(.footnote.weight(.semibold)).foregroundStyle(Theme.textTertiary)
+                    }
                 }
-                Link(destination: Backend.web("privacy")) {
+                Button { browsing = Backend.web("privacy") } label: {
                     SettingsLabel(title: "Privacy Policy", systemImage: "hand.raised.fill", color: Color(uiColor: UIColor(hex: 0x5E5CE6)), glyph: .white)
                 }
-                Link(destination: Backend.web("terms")) {
-                    SettingsLabel(title: "Terms of Service", systemImage: "doc.text.fill", color: Color(uiColor: UIColor(hex: 0x8E8E93)), glyph: .white)
+                Button { browsing = Backend.web("terms") } label: {
+                    SettingsLabel(title: "Terms of Service", systemImage: "checkmark.shield.fill", color: Color(uiColor: UIColor(hex: 0x636366)), glyph: .white)
                 }
             }
             .listRowBackground(Theme.surface)
@@ -113,6 +124,7 @@ struct SettingsView: View {
                 }
             }
         }
+        .inAppBrowser($browsing)
         .errorAlert($error)
         .toast($toast)
         .task { await session.reloadProfile() }

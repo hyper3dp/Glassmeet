@@ -23,14 +23,20 @@ struct CalendarConnectionsView: View {
     @State private var error: String?
     @State private var toast: String?
 
-    private enum Busy: Equatable { case googleConnect, googleSync, googleSettings, googleDisconnect, msConnect, msSync, msSettings, msDisconnect, feed }
+    private enum Busy: Equatable { case googleConnect, googleSync, googleSettings, googleDisconnect, googleTest, msConnect, msSync, msSettings, msDisconnect, feed, export }
     private enum Confirm: Identifiable { case googleDisconnect, msDisconnect, resetFeed; var id: Self { self } }
+
+    @Environment(Session.self) private var session
+    @State private var googleVerified = false
+    @State private var exportFile: ExportFile?
+    @State private var exportNote: String?
 
     var body: some View {
         List {
-            googleSection
-            if microsoftAvailable || microsoft != nil { microsoftSection }
             feedSection
+            googleSection
+            appleSection
+            microsoftSection
         }
         .themedList()
         .overlay { if !loaded { LoadingView() } }
@@ -55,6 +61,9 @@ struct CalendarConnectionsView: View {
             case .msDisconnect: Text("Busy times in Outlook stop hiding slots and new bookings stop being added.")
             case .resetFeed: Text("Calendars subscribed to the old link stop updating. Subscribe again with the new one.")
             }
+        }
+        .sheet(item: $exportFile) { file in
+            ActivityView(items: [file.url]).presentationDetents([.medium, .large]).ignoresSafeArea()
         }
         .refreshable { await load() }
         .task { if !loaded { await load() } }
@@ -106,15 +115,65 @@ struct CalendarConnectionsView: View {
                 }
                 .foregroundStyle(Theme.link)
                 .disabled(busy != nil)
+                Button { Task { await testGoogle() } } label: {
+                    HStack {
+                        Label("Test connection", systemImage: "checkmark.circle")
+                        Spacer()
+                        if busy == .googleTest { ProgressView() }
+                        else if googleVerified { Text("Working").font(.footnote.weight(.semibold)).foregroundStyle(Theme.success) }
+                    }
+                }
+                .foregroundStyle(Theme.link)
+                .disabled(busy != nil)
                 Button("Disconnect", role: .destructive) { confirm = .googleDisconnect }
                     .disabled(busy != nil)
-            } else {
+            } else if !googleUnavailable {
                 connectButton(google == nil ? "Connect Google Calendar" : "Reconnect Google Calendar", busy: busy == .googleConnect) {
                     Task { await connectGoogle() }
                 }
             }
         } footer: {
-            Text("GlassMeet hides times you’re busy in Google and adds confirmed bookings to your calendar.")
+            Text(googleDescription)
+        }
+        .listRowBackground(Theme.surface)
+    }
+
+    private var googleDescription: String {
+        if let google, google.connected == true {
+            let synced = google.autoSync ?? true ? ", and new bookings are added to Google Calendar" : ""
+            return "Times you’re busy in Google are hidden from your booking pages\(synced). Events held on Google Meet get a new Meet link for each booking."
+        }
+        if let google {
+            return "Google stopped accepting the connection\(google.email.map { " to \($0)" } ?? ""). Connect again to keep busy times and bookings in sync."
+        }
+        if googleUnavailable { return "Google Calendar isn’t available yet. Until then, guests can add meetings to Google Calendar from their confirmation page." }
+        return "Connect Google Calendar so times you’re busy stay off your booking pages, new bookings are added to your calendar, and events held on Google Meet get a link for each booking."
+    }
+
+    // MARK: Apple Calendar
+
+    private var appleSection: some View {
+        Section {
+            ProviderHeader(name: "Apple Calendar", systemImage: "apple.logo", color: .black, status: "Always available", statusColor: Theme.success)
+            Button { Task { await exportMeetings() } } label: {
+                HStack {
+                    Label("Add my meetings", systemImage: "calendar.badge.plus")
+                    Spacer()
+                    if busy == .export { ProgressView() }
+                }
+            }
+            .foregroundStyle(Theme.link)
+            .disabled(busy != nil)
+            Button { exportTestEvent() } label: {
+                Label("Try a test event", systemImage: "calendar.badge.checkmark")
+            }
+            .foregroundStyle(Theme.link)
+            .disabled(busy != nil)
+            if let exportNote {
+                Text(exportNote).font(.footnote).foregroundStyle(Theme.textSecondary)
+            }
+        } footer: {
+            Text("Makes a calendar file with your upcoming meetings to open in Calendar or any calendar app. No account needed; add it again to pick up new bookings. To keep it updated on its own, use Subscribe above.")
         }
         .listRowBackground(Theme.surface)
     }
@@ -149,18 +208,32 @@ struct CalendarConnectionsView: View {
                 .disabled(busy != nil)
                 Button("Disconnect", role: .destructive) { confirm = .msDisconnect }
                     .disabled(busy != nil)
-            } else {
+            } else if microsoftAvailable || microsoft != nil {
                 connectButton(microsoft == nil ? "Connect Outlook" : "Reconnect Outlook", busy: busy == .msConnect) {
                     Task { await connectMicrosoft() }
                 }
+            } else if loaded {
+                Label("Coming soon", systemImage: "clock").font(.subheadline.weight(.semibold)).foregroundStyle(Theme.textSecondary)
             }
         } footer: {
-            Text(microsoft?.teams == true ? "Teams meetings are created for Microsoft Teams events." : "Work and school accounts can also create Teams meetings.")
+            Text(msDescription)
         }
         .listRowBackground(Theme.surface)
     }
 
+    private var msDescription: String {
+        if let microsoft, microsoft.connected == true {
+            let synced = microsoft.autoSync ?? true ? ", and new bookings are added to Outlook" : ""
+            let teams = microsoft.teams == true ? "Events held on Microsoft Teams get a new link for each booking." : "This account can’t create Teams meetings, which need a work or school account."
+            return "Times you’re busy in Outlook are hidden from your booking pages\(synced). \(teams)"
+        }
+        if microsoft != nil { return "Outlook stopped accepting the connection. Connect again to keep it working." }
+        if !microsoftAvailable { return "Microsoft isn’t available yet. Until then, guests can add meetings to Outlook from their confirmation page." }
+        return "Connect a Microsoft 365 or Outlook.com account so times you’re busy stay off your booking pages and new bookings are added to your calendar. Events held on Microsoft Teams get a link for each booking, with a work or school account."
+    }
+
     private var msStatusText: String {
+        if microsoft == nil, !microsoftAvailable, loaded { return "Coming soon" }
         guard let microsoft else { return "Not connected" }
         guard microsoft.connected == true else { return "Needs reconnecting" }
         return microsoft.email.map { "Connected as \($0)" } ?? "Connected"
@@ -212,7 +285,7 @@ struct CalendarConnectionsView: View {
         } header: {
             Text("Subscribe to your meetings")
         } footer: {
-            Text("Any calendar app can subscribe to this private link and shows your GlassMeet meetings. Keep it to yourself.")
+            Text("Add this link to your calendar app once. New bookings and cancellations then show up on their own: Apple Calendar refreshes about every hour, Google Calendar can take up to a day. Anyone with the link can see your meeting times and guest details, so keep it private and reset it if it gets shared.")
         }
         .listRowBackground(Theme.surface)
     }
@@ -376,6 +449,55 @@ struct CalendarConnectionsView: View {
         }
     }
 
+    /// Reads the calendar list: if Google answers, the connection works (web: Test)
+    private func testGoogle() async {
+        busy = .googleTest
+        defer { busy = nil }
+        do {
+            calendars = try await CalendarAPI.googleCalendars()
+            googleVerified = true
+            toast = "Google Calendar is working"
+        } catch {
+            googleVerified = false
+            report(error, "Google Calendar didn’t answer")
+        }
+    }
+
+    // MARK: Apple Calendar actions
+
+    /// One .ics with every upcoming confirmed meeting (web: exportMyMeetings)
+    private func exportMeetings() async {
+        busy = .export
+        defer { busy = nil }
+        do {
+            let now = Date.now
+            let upcoming = try await BookingsAPI.list()
+                .filter { !$0.isCancelled && !$0.isPending && $0.end >= now }
+                .sorted { $0.start < $1.start }
+            guard !upcoming.isEmpty else {
+                exportNote = "No upcoming meetings to add yet. New bookings will appear here."
+                return
+            }
+            let ics = ICS.calendar(name: "GlassMeet: \(session.hostName.isEmpty ? "Meetings" : session.hostName)", events: upcoming.map(ICS.Event.init))
+            exportFile = try ExportFile(name: "glassmeet-meetings.ics", text: ics)
+            exportNote = "\(Fmt.plural(upcoming.count, "upcoming meeting")) ready. Choose Calendar, or save the file and open it."
+        } catch {
+            self.error = "Couldn’t load your meetings. \(error.readable)"
+        }
+    }
+
+    private func exportTestEvent() {
+        let start = Calendar.current.date(byAdding: .day, value: 1, to: Calendar.current.startOfDay(for: .now))?.addingTimeInterval(10 * 3600) ?? .now
+        let event = ICS.Event(id: "glassmeet-test", title: "GlassMeet test event", start: start, end: start.addingTimeInterval(1800),
+                              details: "A test from GlassMeet. If you can see this, your calendar app accepts GlassMeet events. You can delete it.", location: nil, url: nil)
+        do {
+            exportFile = try ExportFile(name: "glassmeet-test.ics", text: ICS.calendar(name: "GlassMeet test", events: [event]))
+            exportNote = "Test event made. Add it to check your calendar app accepts GlassMeet events."
+        } catch {
+            self.error = error.readable
+        }
+    }
+
     // MARK: Microsoft actions
 
     private func msAutoSync(_ on: Bool) async {
@@ -425,6 +547,104 @@ struct CalendarConnectionsView: View {
         } catch {
             self.error = "Couldn’t reset the link. \(error.readable)"
         }
+    }
+}
+
+/// A calendar file written to the temporary folder, ready for the share sheet
+private struct ExportFile: Identifiable {
+    var url: URL
+    var id: String { url.absoluteString }
+
+    init(name: String, text: String) throws {
+        url = FileManager.default.temporaryDirectory.appending(path: name)
+        try Data(text.utf8).write(to: url, options: .atomic)
+    }
+}
+
+/// The system share sheet (Calendar, Files, Mail, AirDrop…)
+struct ActivityView: UIViewControllerRepresentable {
+    var items: [Any]
+    func makeUIViewController(context: Context) -> UIActivityViewController {
+        UIActivityViewController(activityItems: items, applicationActivities: nil)
+    }
+    func updateUIViewController(_ controller: UIActivityViewController, context: Context) {}
+}
+
+/// iCalendar (RFC 5545) text for meetings, like the web's src/lib/ics.js
+enum ICS {
+    struct Event {
+        var id: String
+        var title: String
+        var start: Date
+        var end: Date
+        var details: String?
+        var location: String?
+        var url: String?
+
+        init(id: String, title: String, start: Date, end: Date, details: String?, location: String?, url: String?) {
+            self.id = id
+            self.title = title
+            self.start = start
+            self.end = end
+            self.details = details
+            self.location = location
+            self.url = url
+        }
+
+        init(_ b: Booking) {
+            var lines = ["Guest: \(b.name)"]
+            if let email = b.email { lines.append("Email: \(email)") }
+            if let phone = b.phone { lines.append("Phone: \(phone)") }
+            if let link = b.link { lines.append("Join: \(link)") }
+            self.init(id: "gm\(API.key(b.id))", title: "\(b.eventTitle) with \(b.name)", start: b.start, end: b.end,
+                      details: lines.joined(separator: "\n"), location: b.link, url: b.link.flatMap { $0.hasPrefix("http") ? $0 : nil })
+        }
+    }
+
+    static func calendar(name: String, events: [Event]) -> String {
+        var out = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//GlassMeet//GlassMeet app//EN", "CALSCALE:GREGORIAN", "METHOD:PUBLISH", "X-WR-CALNAME:\(text(name))"]
+        let stamp = utc(.now)
+        for e in events {
+            out += ["BEGIN:VEVENT", "UID:\(e.id)@glassmeet", "DTSTAMP:\(stamp)", "DTSTART:\(utc(e.start))", "DTEND:\(utc(e.end))", "SUMMARY:\(text(e.title))"]
+            if let d = e.details, !d.isEmpty { out.append("DESCRIPTION:\(text(d))") }
+            if let l = e.location, !l.isEmpty { out.append("LOCATION:\(text(l))") }
+            if let u = e.url { out.append("URL:\(u)") }
+            out.append("END:VEVENT")
+        }
+        out.append("END:VCALENDAR")
+        return out.map(fold).joined(separator: "\r\n") + "\r\n"
+    }
+
+    private static func utc(_ date: Date) -> String {
+        let f = DateFormatter()
+        f.locale = Locale(identifier: "en_US_POSIX")
+        f.timeZone = TimeZone(identifier: "UTC")
+        f.dateFormat = "yyyyMMdd'T'HHmmss'Z'"
+        return f.string(from: date)
+    }
+
+    /// Escapes guest-written text (backslash, ; , and new lines)
+    private static func text(_ s: String) -> String {
+        s.replacingOccurrences(of: "\\", with: "\\\\")
+            .replacingOccurrences(of: ";", with: "\\;")
+            .replacingOccurrences(of: ",", with: "\\,")
+            .replacingOccurrences(of: "\r\n", with: "\\n")
+            .replacingOccurrences(of: "\n", with: "\\n")
+    }
+
+    /// Lines longer than 75 octets continue on the next line after a space
+    private static func fold(_ line: String) -> String {
+        var parts: [String] = []
+        var current = ""
+        for ch in line {
+            if (current + String(ch)).utf8.count > (parts.isEmpty ? 75 : 74) {
+                parts.append(current)
+                current = ""
+            }
+            current.append(ch)
+        }
+        parts.append(current)
+        return parts.joined(separator: "\r\n ")
     }
 }
 

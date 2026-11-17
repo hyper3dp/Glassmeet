@@ -87,14 +87,16 @@ struct HomeView: View {
                     .accessibilityLabel("Share a booking link")
                 }
             }
+            // booking messages: new bookings, requests and cancellations (Insights is further down)
             ToolbarItem(placement: .topBarTrailing) {
-                NavigationLink(value: Route.analytics) {
-                    Image(systemName: "chart.bar.xaxis")
-                }
-                .accessibilityLabel("Analytics")
+                NotificationsBell()
             }
         }
-        .refreshable { await data.loadAll() }
+        .refreshable {
+            async let all: Void = data.loadAll()
+            async let inbox: Void = data.loadNotifications()
+            _ = await (all, inbox)
+        }
         .task { await data.loadAll() }
         .toast($toast)
     }

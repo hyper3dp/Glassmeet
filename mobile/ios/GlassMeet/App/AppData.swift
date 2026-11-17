@@ -9,6 +9,42 @@ final class AppData {
     var bookingsState: LoadState = .idle
     var eventTypes: [EventType] = []
     var eventTypesState: LoadState = .idle
+    var notifications: [AppNotification] = []
+    var notificationsState: LoadState = .idle
+
+    var unreadCount: Int { notifications.filter { !$0.isRead }.count }
+
+    func loadNotifications() async {
+        if notifications.isEmpty { notificationsState = .loading }
+        do {
+            notifications = try await NotificationsAPI.list()
+            notificationsState = .loaded
+        } catch where AppData.isCancel(error) {
+            if notificationsState == .loading { notificationsState = .idle }
+        } catch {
+            // a background check failing keeps the list already shown
+            if notifications.isEmpty { notificationsState = .failed(error.readable) }
+        }
+    }
+
+    /// Marks these read here first; puts them back if the server says no
+    func markRead(_ ids: [UUID]) async -> Bool {
+        let marked = Set(ids)
+        guard !marked.isEmpty else { return true }
+        let before = notifications
+        notifications = notifications.map { n in
+            var n = n
+            if marked.contains(n.id) { n.read = true }
+            return n
+        }
+        do {
+            try await NotificationsAPI.markRead(ids)
+            return true
+        } catch {
+            notifications = before
+            return false
+        }
+    }
 
     func loadBookings() async {
         if bookings.isEmpty { bookingsState = .loading }
@@ -64,6 +100,8 @@ final class AppData {
     func reset() {
         bookings = []
         eventTypes = []
+        notifications = []
+        notificationsState = .idle
         bookingsState = .idle
         eventTypesState = .idle
     }

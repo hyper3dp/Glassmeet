@@ -4,18 +4,36 @@ import UIKit
 struct SchedulingView: View {
     @Environment(AppData.self) private var data
     @Environment(Router.self) private var router
-    @State private var picking = false
     @State private var deleting: EventType?
     @State private var error: String?
     @State private var toast: String?
 
+    /// The New event type sheet; the tab bar's Create button opens it too
+    private var picking: Binding<Bool> {
+        Binding(get: { router.pickingTemplate }, set: { router.pickingTemplate = $0 })
+    }
+
     var body: some View {
         List {
+            Section {
+                NavigationLink(value: Route.availability) {
+                    HStack(spacing: Theme.Space.s) {
+                        IconTile(systemImage: "clock.fill", color: Theme.primary, size: 36)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Availability").font(.headline).foregroundStyle(Theme.text)
+                            Text("Weekly hours, days off and holidays").font(.subheadline).foregroundStyle(Theme.textSecondary)
+                        }
+                    }
+                    .padding(.vertical, 2)
+                }
+            }
+            .listRowBackground(Theme.surface)
+
             if data.eventTypes.isEmpty, data.eventTypesState.isLoaded {
                 Section {
                     EmptyStateView(title: "Create your first event type", systemImage: "link.badge.plus",
                                    message: "An event type is a meeting guests can book, like a 30 minute call. Share its link and guests pick a time.") {
-                        Button("New event type") { picking = true }
+                        Button("New event type") { router.pickingTemplate = true }
                             .buttonStyle(PrimaryButtonStyle(compact: true))
                     }
                 }
@@ -38,7 +56,7 @@ struct SchedulingView: View {
                 if let error = data.eventTypesState.error {
                     ErrorStateView(message: error) { await data.loadEventTypes() }
                 } else {
-                    LoadingView()
+                    LoadingView().padding(.top, 120)
                 }
             }
         }
@@ -46,13 +64,13 @@ struct SchedulingView: View {
         .toolbar {
             // drawn by the system as a Liquid Glass button in the navigation bar
             ToolbarItem(placement: .topBarTrailing) {
-                Button { picking = true } label: { Image(systemName: "plus") }
+                Button { router.pickingTemplate = true } label: { Image(systemName: "plus") }
                     .accessibilityLabel("New event type")
             }
         }
-        .sheet(isPresented: $picking) {
+        .sheet(isPresented: picking) {
             TemplatePickerSheet { choice in
-                picking = false
+                router.pickingTemplate = false
                 router.schedulingPath.append(.eventForm(.new(choice.flatMap { EventType.prefill($0.data) })))
             }
         }
@@ -144,9 +162,6 @@ private struct EventTypeRow: View {
         }
         .buttonStyle(.plain)
 
-        Toggle("Bookable", isOn: Binding(get: { event.isActive }, set: toggle))
-            .tint(Theme.primary)
-
         HStack(spacing: Theme.Space.s) {
             Button {
                 UIPasteboard.general.url = url
@@ -167,6 +182,11 @@ private struct EventTypeRow: View {
                 Button("Edit", systemImage: "pencil", action: edit)
                 Button("Duplicate", systemImage: "plus.square.on.square", action: duplicate)
                 Button("Save as template", systemImage: "square.and.arrow.down", action: saveTemplate)
+                if event.isActive {
+                    Button("Turn off", systemImage: "pause.circle") { toggle(false) }
+                } else {
+                    Button("Turn on", systemImage: "play.circle") { toggle(true) }
+                }
                 Divider()
                 Button("Delete", systemImage: "trash", role: .destructive, action: delete)
             } label: {
