@@ -7,7 +7,16 @@ Two native host apps that use the same Supabase project as the web app. Guests s
 | `ios/` | iPhone, iOS 17+ (Liquid Glass on iOS 26) | SwiftUI, system tab bar, [supabase-swift](https://github.com/supabase/supabase-swift) |
 | `android/` | Android 8+ (API 26) | Kotlin, Jetpack Compose, Material 3, [supabase-kt](https://github.com/supabase-community/supabase-kt) |
 
-Both follow `SPEC.md` (navigation, screens, states, design tokens, sign-in setup): sign in (email, Google, LinkedIn), create account and verify code, reset password, Home, Meetings and a meeting's page, Scheduling and the full event type form, Availability (weekly hours, date overrides, daily limit, UAE holidays), Analytics, Calendar connections (Google, Microsoft, subscribe feed), Settings (profile, photo, account deletion) and WhatsApp messages.
+Both follow `SPEC.md` (navigation, screens, states, design tokens, sign-in setup): sign in (email, Google, LinkedIn), create account and verify code, reset password, first-run onboarding, Home, Meetings and a meeting's page, Scheduling and the full event type form, Availability (weekly hours, date overrides, daily limit, UAE holidays), Analytics, Booking messages (the web's notifications), Calendar connections (subscribe feed, Google, Apple Calendar file, Microsoft), Settings (profile, photo, account deletion) and WhatsApp messages.
+
+The tab bar is Home, Meetings, Create (opens New event type), Scheduling and Settings. Availability opens from Scheduling and Settings.
+
+## Sign-in and links
+
+- Google and LinkedIn sign-in come back to `glassmeet://auth-callback`. That address must be in Supabase → Authentication → URL Configuration → Redirect URLs (add `glassmeet://**`), or Supabase sends people to the website instead.
+- GlassMeet links (`https://glassmeet.run.place/book/<id>`, `/bookings?id=…`, and `glassmeet://book/<id>`) open in the app: the host's own event type opens its editor, anyone else's booking page opens in an in-app browser.
+  - Android lists the links in its manifest. To open them without asking, the site needs `/.well-known/assetlinks.json` with the SHA-256 of the app's signing key; until then the host can turn on Settings → Apps → GlassMeet → Open supported links.
+  - iPhone needs a signed build with the Associated Domains capability (`applinks:glassmeet.run.place`) and `/.well-known/apple-app-site-association` on the site with the team ID. The unsigned .ipa can't use it; `glassmeet://` links work in every build.
 
 ## Building
 
