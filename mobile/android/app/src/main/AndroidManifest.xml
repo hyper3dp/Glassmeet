@@ -50,6 +50,39 @@
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="glassmeet" android:host="calendar-connections" />
             </intent-filter>
+            <!-- GlassMeet links open in the app: booking pages (glassmeet://book/<id> too) and
+                 meeting links from emails. Verified once the site serves assetlinks.json for the
+                 app's signing key; until then Android asks, or the host turns on "Open supported
+                 links" for GlassMeet. -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https" android:host="glassmeet.run.place" />
+                <data android:pathPrefix="/book/" />
+                <data android:path="/bookings" />
+                <data android:path="/dashboard" />
+                <data android:path="/availability" />
+                <data android:path="/calendar-connections" />
+                <data android:path="/event-types" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="glassmeet" android:host="book" />
+            </intent-filter>
         </activity>
+
+        <!-- Calendar files (.ics) shared with calendar apps -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.files"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
     </application>
 </manifest>

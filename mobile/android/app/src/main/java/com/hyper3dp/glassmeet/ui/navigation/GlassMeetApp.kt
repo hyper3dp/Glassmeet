@@ -73,6 +73,12 @@ import com.hyper3dp.glassmeet.ui.settings.SettingsScreen
 import com.hyper3dp.glassmeet.ui.settings.WhatsAppScreen
 import com.hyper3dp.glassmeet.util.Snack
 import io.github.jan.supabase.auth.status.SessionStatus
+import io.github.jan.supabase.auth.auth
+import androidx.lifecycle.repeatOnLifecycle
+import androidx.compose.foundation.layout.size
+import androidx.compose.material.icons.filled.Add
+import com.hyper3dp.glassmeet.ui.notifications.NotificationsScreen
+import com.hyper3dp.glassmeet.util.Intents
 
 @Composable
 fun GlassMeetApp() {
@@ -156,7 +162,6 @@ private val tabs = listOf(
     Tab("Home", Icons.Outlined.Home, Icons.Filled.Home, HomeGraph, HomeRoute) { it.hasRoute<HomeGraph>() },
     Tab("Meetings", Icons.Outlined.Groups, Icons.Filled.Groups, MeetingsGraph, MeetingsRoute) { it.hasRoute<MeetingsGraph>() },
     Tab("Scheduling", Icons.Outlined.Link, Icons.Filled.Link, SchedulingGraph, SchedulingRoute) { it.hasRoute<SchedulingGraph>() },
-    Tab("Availability", Icons.Outlined.Schedule, Icons.Filled.Schedule, AvailabilityGraph, AvailabilityRoute) { it.hasRoute<AvailabilityGraph>() },
     Tab("Settings", Icons.Outlined.Settings, Icons.Filled.Settings, SettingsGraph, SettingsRoute) { it.hasRoute<SettingsGraph>() },
 )
 
@@ -166,14 +171,66 @@ private fun NavHostController.switchTo(route: Any) = navigate(route) {
     restoreState = true
 }
 
+/** Opens a GlassMeet web path (a notification's link, or a link from outside the app). */
+private fun NavHostController.openWebPath(link: String) {
+    val uri = android.net.Uri.parse(link)
+    when (uri.path?.trim('/')) {
+        "bookings" -> {
+            switchTo(MeetingsGraph)
+            uri.getQueryParameter("id")?.let { navigate(MeetingRoute(it)) { launchSingleTop = true } }
+        }
+        "availability" -> { switchTo(SchedulingGraph); navigate(AvailabilityRoute) { launchSingleTop = true } }
+        "calendar-connections" -> { switchTo(SettingsGraph); navigate(CalendarConnectionsRoute) { launchSingleTop = true } }
+        "event-types" -> switchTo(SchedulingGraph)
+        "dashboard", "" -> switchTo(HomeGraph)
+    }
+}
+
 @Composable
 private fun SignedInApp() {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val userId = remember { com.hyper3dp.glassmeet.data.supabase.auth.currentUserOrNull()?.id }
+    // a new account sees onboarding once; hosts who already have event types or meetings skip it
+    var onboarding by remember { mutableStateOf<Boolean?>(if (userId == null || com.hyper3dp.glassmeet.ui.onboarding.Onboarding.isDone(context, userId)) false else null) }
+    LaunchedEffect(userId) {
+        if (onboarding != null || userId == null) return@LaunchedEffect
+        val events = runCatching { com.hyper3dp.glassmeet.data.EventTypesRepository.list() }
+        val bookings = runCatching { com.hyper3dp.glassmeet.data.BookingsRepository.list(includeExpired = true) }
+        val isNew = events.getOrNull()?.isEmpty() == true && bookings.getOrNull()?.isEmpty() == true
+        if (!isNew) com.hyper3dp.glassmeet.ui.onboarding.Onboarding.markDone(context, userId)
+        onboarding = isNew
+    }
+    when (onboarding) {
+        null -> Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) { LoadingState() }
+        true -> com.hyper3dp.glassmeet.ui.onboarding.OnboardingScreen(hasEventTypes = false) {
+            if (userId != null) com.hyper3dp.glassmeet.ui.onboarding.Onboarding.markDone(context, userId)
+            onboarding = false
+        }
+        false -> MainApp()
+    }
+}
+
+@Composable
+private fun MainApp() {
     val nav = rememberNavController()
     val entry by nav.currentBackStackEntryAsState()
     val destination = entry?.destination
     val snackbar = remember { SnackbarHostState() }
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val scope = rememberCoroutineScope()
 
     LaunchedEffect(Unit) { Snack.messages.collect { snackbar.showSnackbar(it) } }
+
+    // booking messages: checked every minute while the app is on screen, like the web's bell
+    val lifecycle = androidx.lifecycle.compose.LocalLifecycleOwner.current.lifecycle
+    LaunchedEffect(lifecycle) {
+        lifecycle.repeatOnLifecycle(androidx.lifecycle.Lifecycle.State.STARTED) {
+            while (true) {
+                com.hyper3dp.glassmeet.data.NotificationsRepository.refresh()
+                kotlinx.coroutines.delay(60_000)
+            }
+        }
+    }
 
     // a calendar connection came back from the browser: open its page, which finishes it
     val calendarCallback by NavRequests.calendarCallback.collectAsStateWithLifecycle()
@@ -184,12 +241,50 @@ private fun SignedInApp() {
         }
     }
 
+    // a GlassMeet link opened from outside: the host's own event type opens its editor, anyone
+    // else's booking page opens in a browser tab, meeting links open the meeting
+    val openLink by NavRequests.openLink.collectAsStateWithLifecycle()
+    LaunchedEffect(openLink) {
+        val link = openLink ?: return@LaunchedEffect
+        NavRequests.openLink.value = null
+        if (link.startsWith("book:")) {
+            val id = link.removePrefix("book:")
+            val mine = runCatching { com.hyper3dp.glassmeet.data.EventTypesRepository.list().any { it.id == id } }.getOrDefault(false)
+            if (mine) {
+                nav.switchTo(SchedulingGraph)
+                nav.navigate(EventTypeFormRoute(id)) { launchSingleTop = true }
+            } else {
+                Intents.customTab(context, com.hyper3dp.glassmeet.data.Backend.bookingUrl(id))
+            }
+        } else {
+            nav.openWebPath(link)
+        }
+    }
+
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
         snackbarHost = { SnackbarHost(snackbar) },
         bottomBar = {
             NavigationBar {
-                tabs.forEach { tab ->
+                tabs.forEachIndexed { i, tab ->
+                    // Create sits in the middle and opens New event type in Scheduling
+                    if (i == 2) {
+                        NavigationBarItem(
+                            selected = false,
+                            onClick = {
+                                NavRequests.createEventType.value = true
+                                nav.switchTo(SchedulingGraph)
+                                nav.popBackStack(SchedulingRoute, inclusive = false)
+                            },
+                            icon = {
+                                Box(
+                                    Modifier.size(width = 48.dp, height = 32.dp).background(MaterialTheme.colorScheme.primary, androidx.compose.foundation.shape.RoundedCornerShape(16.dp)),
+                                    contentAlignment = Alignment.Center,
+                                ) { Icon(Icons.Filled.Add, contentDescription = null, tint = MaterialTheme.colorScheme.onPrimary) }
+                            },
+                            label = { Text("Create", maxLines = 1) },
+                        )
+                    }
                     val selected = destination?.hierarchy?.any { tab.matches(it) } == true
                     NavigationBarItem(
                         selected = selected,
@@ -221,7 +316,11 @@ private fun SignedInApp() {
                         onOpenMeetings = { nav.switchTo(MeetingsGraph) },
                         onOpenAnalytics = { nav.navigate(AnalyticsRoute) },
                         onOpenScheduling = { nav.switchTo(SchedulingGraph) },
+                        onOpenNotifications = { nav.navigate(NotificationsRoute) { launchSingleTop = true } },
                     )
+                }
+                composable<NotificationsRoute> {
+                    NotificationsScreen(onBack = { nav.popBackStack() }, onOpen = { link -> nav.openWebPath(link) })
                 }
                 composable<AnalyticsRoute> { AnalyticsScreen(onBack = { nav.popBackStack() }) }
                 composable<HomeMeetingRoute> { e -> MeetingScreen(id = e.toRoute<HomeMeetingRoute>().id, onBack = { nav.popBackStack() }) }
@@ -235,12 +334,11 @@ private fun SignedInApp() {
                     SchedulingScreen(
                         onEdit = { id -> nav.navigate(EventTypeFormRoute(id)) },
                         onNew = { nav.navigate(EventTypeFormRoute(null)) },
+                        onOpenAvailability = { nav.navigate(AvailabilityRoute) { launchSingleTop = true } },
                     )
                 }
                 composable<EventTypeFormRoute> { e -> EventTypeFormScreen(id = e.toRoute<EventTypeFormRoute>().id, onBack = { nav.popBackStack() }) }
-            }
-            navigation<AvailabilityGraph>(startDestination = AvailabilityRoute) {
-                composable<AvailabilityRoute> { AvailabilityScreen() }
+                composable<AvailabilityRoute> { AvailabilityScreen(onBack = { nav.popBackStack() }) }
             }
             navigation<SettingsGraph>(startDestination = SettingsRoute) {
                 composable<SettingsRoute> {
@@ -248,8 +346,14 @@ private fun SignedInApp() {
                         onOpenWhatsApp = { nav.navigate(WhatsAppRoute) },
                         onOpenCalendars = { nav.navigate(CalendarConnectionsRoute) },
                         onOpenAddresses = { nav.navigate(AddressesRoute) },
+                        onOpenAvailability = { nav.navigate(SettingsAvailabilityRoute) { launchSingleTop = true } },
+                        onOpenNotifications = {
+                            nav.switchTo(HomeGraph)
+                            nav.navigate(NotificationsRoute) { launchSingleTop = true }
+                        },
                     )
                 }
+                composable<SettingsAvailabilityRoute> { AvailabilityScreen(onBack = { nav.popBackStack() }) }
                 composable<WhatsAppRoute> { WhatsAppScreen(onBack = { nav.popBackStack() }) }
                 composable<AddressesRoute> { com.hyper3dp.glassmeet.ui.settings.AddressesScreen(onBack = { nav.popBackStack() }) }
                 composable<CalendarConnectionsRoute> { CalendarConnectionsScreen(onBack = { nav.popBackStack() }) }

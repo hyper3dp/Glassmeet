@@ -199,8 +199,6 @@ class EventTypeFormViewModel(private val id: String?) : ViewModel() {
         return false
     }
 
-    private fun number(text: String, min: Int, max: Int, fallback: Int) = (text.trim().toIntOrNull() ?: fallback).coerceIn(min, max)
-
     private fun validate(f: EventForm): Boolean {
         if (f.name.isBlank()) return fail("Give the event a name.", "basics")
         if (f.locationKind == LocationKind.InPerson && f.address.isBlank()) return fail("Add the address where you will meet.", "basics")
@@ -218,8 +216,11 @@ class EventTypeFormViewModel(private val id: String?) : ViewModel() {
         return true
     }
 
-    /** The event type's columns as saved (web: EventModal values()). */
-    private fun values(f: EventForm): JsonObject {
+    companion object {
+    fun number(text: String, min: Int, max: Int, fallback: Int) = (text.trim().toIntOrNull() ?: fallback).coerceIn(min, max)
+
+    /** The event type's columns as saved (web: EventModal values()). Onboarding uses it too. */
+    fun values(f: EventForm): JsonObject {
         val days = if (f.usesHours) (0..6).toSet() else f.days
         val endDate = if (f.repeats && f.range == "dates") f.endDate else null
         val kind = f.locationKind
@@ -261,6 +262,7 @@ class EventTypeFormViewModel(private val id: String?) : ViewModel() {
                 }
             }))
         }
+    }
     }
 
     fun save() {

@@ -17,6 +17,8 @@ import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.outlined.EventAvailable
 import androidx.compose.material.icons.outlined.HourglassTop
 import androidx.compose.material.icons.outlined.Insights
+import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material.icons.outlined.Videocam
 import androidx.compose.material3.Button
@@ -63,12 +65,30 @@ fun HomeScreen(
     onOpenMeetings: () -> Unit,
     onOpenAnalytics: () -> Unit,
     onOpenScheduling: () -> Unit,
+    onOpenNotifications: () -> Unit = {},
 ) {
     val vm: HomeViewModel = viewModel()
     val state by vm.state.collectAsStateWithLifecycle()
     val context = LocalContext.current
+    val inbox by com.hyper3dp.glassmeet.data.NotificationsRepository.items.collectAsStateWithLifecycle()
+    val unread = inbox.count { !it.isRead }
 
-    TopLevelScaffold(title = "Home") { inner ->
+    TopLevelScaffold(
+        title = "Home",
+        actions = {
+            // booking messages: new bookings, requests and cancellations
+            androidx.compose.material3.IconButton(onClick = onOpenNotifications) {
+                androidx.compose.material3.BadgedBox(badge = {
+                    if (unread > 0) androidx.compose.material3.Badge { Text(if (unread > 9) "9+" else "$unread") }
+                }) {
+                    Icon(
+                        if (unread > 0) androidx.compose.material.icons.Icons.Filled.Notifications else androidx.compose.material.icons.Icons.Outlined.Notifications,
+                        contentDescription = if (unread > 0) "Booking messages, $unread unread" else "Booking messages",
+                    )
+                }
+            }
+        },
+    ) { inner ->
         LoadableContent(state, onRetry = { vm.load() }, onRefresh = vm::refresh, modifier = Modifier.padding(top = inner.calculateTopPadding())) { d ->
             LazyColumn(contentPadding = screenPadding(androidx.compose.foundation.layout.PaddingValues(0.dp)), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 item {

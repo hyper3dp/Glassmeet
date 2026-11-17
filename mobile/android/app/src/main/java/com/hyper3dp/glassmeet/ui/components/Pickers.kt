@@ -9,6 +9,9 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.icons.outlined.Schedule
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -69,6 +72,44 @@ fun DateField(label: String, date: LocalDate?, onClick: () -> Unit, modifier: Mo
     }
 }
 
+/**
+ * A time of day (minutes after midnight) that opens the system clock picker. With
+ * [allowMidnight], 00:00 means the end of the day (1440), for "To" times.
+ */
+@Composable
+fun TimeField(label: String, minutes: Int, onPick: (Int) -> Unit, modifier: Modifier = Modifier, allowMidnight: Boolean = false, enabled: Boolean = true) {
+    var open by androidx.compose.runtime.saveable.rememberSaveable { androidx.compose.runtime.mutableStateOf(false) }
+    androidx.compose.foundation.layout.Box(modifier) {
+        OutlinedTextField(
+            value = Format.clock(minutes), onValueChange = {}, readOnly = true, singleLine = true, enabled = enabled,
+            label = { Text(label) }, modifier = Modifier.fillMaxWidth(),
+            trailingIcon = { androidx.compose.material3.Icon(androidx.compose.material.icons.Icons.Outlined.Schedule, contentDescription = null) },
+        )
+        androidx.compose.foundation.layout.Box(
+            Modifier.matchParentSize().padding(top = 8.dp).clickable(enabled = enabled, onClickLabel = "Change $label") { open = true },
+        )
+    }
+    if (open) {
+        val context = androidx.compose.ui.platform.LocalContext.current
+        val start = minutes.coerceIn(0, 1440) % 1440
+        val state = androidx.compose.material3.rememberTimePickerState(
+            initialHour = start / 60, initialMinute = start % 60, is24Hour = android.text.format.DateFormat.is24HourFormat(context),
+        )
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { open = false },
+            title = { Text(label) },
+            text = { androidx.compose.material3.TimePicker(state = state) },
+            confirmButton = {
+                TextButton(onClick = {
+                    val picked = state.hour * 60 + state.minute
+                    onPick(if (allowMidnight && picked == 0) 1440 else picked)
+                    open = false
+                }) { Text("OK") }
+            },
+            dismissButton = { TextButton(onClick = { open = false }) { Text("Cancel") } },
+        )
+    }
+}
 
 /** A whole-number field. */
 @Composable

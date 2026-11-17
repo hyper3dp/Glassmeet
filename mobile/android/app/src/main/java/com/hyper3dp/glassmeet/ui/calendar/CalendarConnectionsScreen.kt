@@ -19,6 +19,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.CalendarMonth
+import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.outlined.Event
 import androidx.compose.material.icons.outlined.Sync
@@ -77,21 +78,28 @@ fun CalendarConnectionsScreen(onBack: () -> Unit) {
                 Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 8.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
+                FeedCard(s, onCopy = { Intents.copy(context, it, "Calendar feed", toast = "Link copied") }, onOpen = { Intents.open(context, it) }, onReset = { confirm = "feed" })
+
                 // Google Calendar
                 SectionTitle("Google Calendar")
                 SectionCard {
                     val g = s.google
                     val busy = s.busy == "google"
                     if (g == null) {
-                        Text("Hide times you're busy in Google Calendar from your booking pages, and add new bookings to it.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text("Connect Google Calendar so times you're busy stay off your booking pages, new bookings are added to your calendar, and events held on Google Meet get a link for each booking.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         Spacer(Modifier.height(12.dp))
                         ConnectButton("Connect Google Calendar", busy) { vm.connectGoogle(openTab) }
                     } else {
                         StatusLine(g.email, g.connected)
                         if (!g.connected) {
+                            HintText("Google stopped accepting the connection. Connect again to keep busy times and bookings in sync.", Modifier.padding(top = 8.dp))
                             Spacer(Modifier.height(8.dp))
                             ConnectButton("Reconnect", busy) { vm.connectGoogle(openTab) }
                         } else {
+                            HintText(
+                                "Times you're busy in Google are hidden from your booking pages${if (g.autoSync) ", and new bookings are added to Google Calendar" else ""}. Events held on Google Meet get a new Meet link for each booking.",
+                                Modifier.padding(top = 8.dp),
+                            )
                             if (s.calendars.isNotEmpty()) {
                                 Spacer(Modifier.height(12.dp))
                                 SelectField(
@@ -101,19 +109,54 @@ fun CalendarConnectionsScreen(onBack: () -> Unit) {
                             }
                             SwitchRow("Auto-sync", g.autoSync, vm::setGoogleAutoSync, subtitle = "Add new bookings to Google Calendar", enabled = !busy)
                             SyncRow(g.syncedDate, busy, onSync = vm::syncGoogle, onDisconnect = { confirm = "google" })
+                            TextButton(onClick = vm::testGoogle, enabled = !busy) {
+                                Icon(Icons.Outlined.CheckCircle, contentDescription = null, modifier = Modifier.size(18.dp))
+                                Spacer(Modifier.width(8.dp))
+                                Text(if (s.googleVerified) "Connection verified" else "Test connection")
+                            }
                         }
                     }
                     ErrorText(s.googleError)
                 }
 
-                // Microsoft Outlook / Teams: hidden while the server doesn't offer it
-                if (s.microsoftAvailable || s.microsoft != null) {
-                    SectionTitle("Microsoft Outlook and Teams")
-                    SectionCard {
+                // Apple Calendar: a calendar file, no account needed
+                SectionTitle("Apple Calendar")
+                SectionCard {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text("Apple Calendar", style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
+                        Pill("Always available", AppTheme.tokens.success)
+                    }
+                    HintText(
+                        "Add your upcoming meetings to Apple Calendar or any calendar app with a standard .ics file. No account connection required. Add it again to pick up new bookings, or subscribe above to stay updated.",
+                        Modifier.padding(top = 8.dp, bottom = 8.dp),
+                    )
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        FilledTonalButton(onClick = { vm.exportMeetings { name, ics -> Ics.open(context, name, ics) } }, enabled = s.busy == null) {
+                            if (s.busy == "export") CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
+                            else Icon(Icons.Outlined.CalendarMonth, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Spacer(Modifier.width(8.dp))
+                            Text("Add my meetings")
+                        }
+                        OutlinedButton(onClick = { vm.exportTestEvent { name, ics -> Ics.open(context, name, ics) } }, enabled = s.busy == null) {
+                            Text("Try a test event")
+                        }
+                    }
+                    s.exportNote?.let { HintText(it, Modifier.padding(top = 8.dp)) }
+                }
+
+                // Microsoft Outlook / Teams
+                SectionTitle("Microsoft Outlook and Teams")
+                SectionCard {
                         val m = s.microsoft
                         val busy = s.busy == "microsoft"
-                        if (m == null) {
-                            Text("Hide times you're busy in Outlook, add new bookings to it, and make Teams links.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        if (m == null && !s.microsoftAvailable) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text("Outlook and Teams", style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
+                                Pill("Coming soon", AppTheme.tokens.link)
+                            }
+                            HintText("Microsoft isn't available yet. Until then, guests can add meetings to Outlook from their confirmation page.", Modifier.padding(top = 8.dp))
+                        } else if (m == null) {
+                            Text("Connect a Microsoft 365 or Outlook.com account so times you're busy stay off your booking pages and new bookings are added to your calendar. Events held on Microsoft Teams get a link for each booking, with a work or school account.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             Spacer(Modifier.height(12.dp))
                             ConnectButton("Connect Outlook", busy) { vm.connectMicrosoft(openTab) }
                         } else {
@@ -132,43 +175,6 @@ fun CalendarConnectionsScreen(onBack: () -> Unit) {
                             }
                         }
                         ErrorText(s.microsoftError)
-                    }
-                }
-
-                // Subscribe feed (.ics)
-                SectionTitle("Subscribe in any calendar")
-                SectionCard {
-                    Text(
-                        "A private link that shows your GlassMeet meetings in Apple Calendar, Google Calendar or Outlook. They refresh it every few hours.",
-                        style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    val token = s.feedToken
-                    if (token == null) {
-                        Spacer(Modifier.height(8.dp))
-                        ErrorText(s.feedError ?: "Your subscription link didn't load.")
-                    } else {
-                        val url = Backend.feedUrl(token)
-                        val webcal = url.replaceFirst("https:", "webcal:")
-                        Spacer(Modifier.height(12.dp))
-                        Text(url, style = MaterialTheme.typography.bodySmall, color = AppTheme.tokens.link, maxLines = 2, overflow = TextOverflow.Ellipsis)
-                        Spacer(Modifier.height(12.dp))
-                        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            FilledTonalButton(onClick = { Intents.copy(context, url, "Calendar feed", toast = "Link copied") }) {
-                                Icon(Icons.Outlined.ContentCopy, contentDescription = null, modifier = Modifier.size(18.dp))
-                                Spacer(Modifier.width(8.dp))
-                                Text("Copy link")
-                            }
-                            OutlinedButton(onClick = { Intents.open(context, webcal) }) { Text("Apple Calendar") }
-                            OutlinedButton(onClick = { Intents.open(context, "https://calendar.google.com/calendar/r?cid=" + Uri.encode(webcal)) }) { Text("Google") }
-                            OutlinedButton(onClick = {
-                                Intents.open(context, "https://outlook.live.com/calendar/0/addfromweb?url=" + Uri.encode(url) + "&name=" + Uri.encode("GlassMeet"))
-                            }) { Text("Outlook") }
-                        }
-                        Spacer(Modifier.height(8.dp))
-                        TextButton(onClick = { confirm = "feed" }, enabled = s.busy == null) {
-                            Text("Reset link", color = MaterialTheme.colorScheme.error)
-                        }
-                    }
                 }
                 Spacer(Modifier.height(24.dp))
             }
@@ -188,6 +194,48 @@ fun CalendarConnectionsScreen(onBack: () -> Unit) {
             "Reset the link?", "Calendars subscribed to the current link stop updating. You'll need to subscribe again with the new one.", "Reset link",
             onConfirm = { confirm = null; vm.rotateFeed() }, onDismiss = { confirm = null }, dismissLabel = "Cancel",
         )
+    }
+}
+
+/** Subscribe feed (.ics): one auto-updating link per host, first like the web page. */
+@Composable
+private fun FeedCard(s: CalendarUiState, onCopy: (String) -> Unit, onOpen: (String) -> Unit, onReset: () -> Unit) {
+    SectionTitle("Subscribe to your GlassMeet calendar")
+    SectionCard {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text("Calendar link", style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
+            Pill("Auto-updates", AppTheme.tokens.success)
+        }
+        Text(
+            "Add this link to your calendar app once. New bookings and cancellations then show up on their own. Apple Calendar refreshes about every hour; Google Calendar can take up to a day.",
+            style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 8.dp),
+        )
+        val token = s.feedToken
+        if (token == null) {
+            Spacer(Modifier.height(8.dp))
+            ErrorText(s.feedError ?: "Your subscription link didn't load.")
+        } else {
+            val url = Backend.feedUrl(token)
+            val webcal = url.replaceFirst("https:", "webcal:")
+            Spacer(Modifier.height(12.dp))
+            Text(url, style = MaterialTheme.typography.bodySmall, color = AppTheme.tokens.link, maxLines = 2, overflow = TextOverflow.Ellipsis)
+            HintText("Anyone with this link can see your meeting times and guest details. Keep it private, and reset it if it gets shared.", Modifier.padding(top = 4.dp))
+            Spacer(Modifier.height(12.dp))
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                FilledTonalButton(onClick = { onCopy(url) }) {
+                    Icon(Icons.Outlined.ContentCopy, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text("Copy link")
+                }
+                OutlinedButton(onClick = { onOpen(webcal) }) { Text("Apple Calendar") }
+                OutlinedButton(onClick = { onOpen("https://calendar.google.com/calendar/r?cid=" + Uri.encode(webcal)) }) { Text("Google") }
+                OutlinedButton(onClick = { onOpen("https://outlook.live.com/calendar/0/addfromweb?url=" + Uri.encode(url) + "&name=" + Uri.encode("GlassMeet")) }) { Text("Outlook") }
+            }
+            Spacer(Modifier.height(8.dp))
+            TextButton(onClick = onReset, enabled = s.busy == null) {
+                if (s.busy == "feed") CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp) else Text("Reset link", color = MaterialTheme.colorScheme.error)
+            }
+        }
     }
 }
 

@@ -98,6 +98,7 @@ object AuthRepository {
     suspend fun signOut() {
         runCatching { supabase.auth.signOut() }
         ProfileRepository.clear()
+        NotificationsRepository.clear()
     }
 
     private fun authMessage(e: AuthRestException): String = when (e.error) {

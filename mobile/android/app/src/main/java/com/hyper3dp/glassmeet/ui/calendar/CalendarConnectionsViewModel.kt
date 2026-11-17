@@ -32,6 +32,10 @@ data class CalendarUiState(
     val busy: String? = null,
     val googleError: String? = null,
     val microsoftError: String? = null,
+    /** Test connection answered */
+    val googleVerified: Boolean = false,
+    /** The result of Add my meetings / test event */
+    val exportNote: String? = null,
 )
 
 class CalendarConnectionsViewModel : ViewModel() {
@@ -143,6 +147,50 @@ class CalendarConnectionsViewModel : ViewModel() {
         val at = CalendarRepository.googleSync() ?: java.time.Instant.now().toString()
         _state.update { it.copy(google = it.google?.copy(syncedDate = at)) }
         Snack.show("Google Calendar is up to date")
+    }
+
+    /** Reads the calendar list: if Google answers, the connection works (web: Test). */
+    fun testGoogle() = work("google", this::googleError) {
+        _state.update { it.copy(googleVerified = false) }
+        val list = CalendarRepository.googleCalendars()
+        _state.update { it.copy(calendars = list, googleVerified = true) }
+        Snack.show("Google Calendar is working")
+    }
+
+    /** Every upcoming confirmed meeting as one .ics file (web: exportMyMeetings). */
+    fun exportMeetings(share: (String, String) -> Unit) {
+        if (_state.value.busy != null) return
+        _state.update { it.copy(busy = "export", exportNote = null) }
+        viewModelScope.launch {
+            try {
+                val now = java.time.Instant.now()
+                val upcoming = com.hyper3dp.glassmeet.data.BookingsRepository.list()
+                    .filter { !it.isCancelled && !it.isPending && !it.end.isBefore(now) }
+                    .sortedBy { it.start }
+                if (upcoming.isEmpty()) {
+                    _state.update { it.copy(exportNote = "No upcoming meetings to add yet. New bookings will appear here.") }
+                } else {
+                    val name = com.hyper3dp.glassmeet.data.ProfileRepository.profile.value?.fullName?.ifBlank { null } ?: "Meetings"
+                    share("glassmeet-meetings.ics", Ics.calendar("GlassMeet: $name", upcoming.map(Ics::event)))
+                    val n = upcoming.size
+                    _state.update { it.copy(exportNote = "$n upcoming meeting${if (n == 1) "" else "s"} ready. Open the file with your calendar app.") }
+                }
+            } catch (e: Exception) {
+                _state.update { it.copy(exportNote = "Couldn't load your meetings. ${e.friendly("")}".trim()) }
+            } finally {
+                _state.update { it.copy(busy = null) }
+            }
+        }
+    }
+
+    fun exportTestEvent(share: (String, String) -> Unit) {
+        val start = java.time.LocalDate.now().plusDays(1).atTime(10, 0).atZone(java.time.ZoneId.systemDefault()).toInstant()
+        val event = Ics.Event(
+            "glassmeet-test", "GlassMeet test event", start, start.plusSeconds(1800),
+            "A test from GlassMeet. If you can see this, your calendar app accepts GlassMeet events. You can delete it.", null,
+        )
+        share("glassmeet-test.ics", Ics.calendar("GlassMeet test", listOf(event)))
+        _state.update { it.copy(exportNote = "Test event made. Add it to check your calendar app accepts GlassMeet events.") }
     }
 
     fun disconnectGoogle() = work("google", this::googleError) {

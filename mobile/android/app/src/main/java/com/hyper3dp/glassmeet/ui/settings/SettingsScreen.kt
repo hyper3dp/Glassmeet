@@ -28,6 +28,15 @@ import androidx.compose.material.icons.outlined.Key
 import androidx.compose.material.icons.outlined.PhotoCamera
 import androidx.compose.material.icons.outlined.Place
 import androidx.compose.material.icons.outlined.PrivacyTip
+import androidx.compose.material.icons.outlined.EventAvailable
+import androidx.compose.material.icons.outlined.Forum
+import androidx.compose.material.icons.outlined.Gavel
+import androidx.compose.material.icons.outlined.Language
+import androidx.compose.material.icons.outlined.LocationOn
+import androidx.compose.material.icons.outlined.NotificationsActive
+import androidx.compose.material.icons.outlined.Password
+import androidx.compose.material.icons.outlined.Schedule
+import androidx.compose.material.icons.outlined.Shield
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
@@ -66,7 +75,13 @@ import com.hyper3dp.glassmeet.ui.theme.AppTheme
 import com.hyper3dp.glassmeet.util.Intents
 
 @Composable
-fun SettingsScreen(onOpenWhatsApp: () -> Unit, onOpenCalendars: () -> Unit, onOpenAddresses: () -> Unit) {
+fun SettingsScreen(
+    onOpenWhatsApp: () -> Unit,
+    onOpenCalendars: () -> Unit,
+    onOpenAddresses: () -> Unit,
+    onOpenAvailability: () -> Unit = {},
+    onOpenNotifications: () -> Unit = {},
+) {
     val vm: SettingsViewModel = viewModel()
     val s by vm.state.collectAsStateWithLifecycle()
     val context = LocalContext.current
@@ -148,24 +163,33 @@ fun SettingsScreen(onOpenWhatsApp: () -> Unit, onOpenCalendars: () -> Unit, onOp
                     }
                 }
 
-                SectionTitle("App")
+                SectionTitle("Scheduling")
                 SectionCard(padding = 0.dp) {
-                    NavRow("WhatsApp messages", Icons.AutoMirrored.Outlined.Chat, "Your number and message templates", onClick = onOpenWhatsApp)
+                    NavRow("Availability", Icons.Outlined.Schedule, "Weekly hours, days off and holidays", tint = AppTheme.tokens.link, onClick = onOpenAvailability)
                     HorizontalDivider(Modifier.padding(start = 56.dp), color = AppTheme.tokens.border)
-                    NavRow("Calendar connections", Icons.Outlined.CalendarMonth, "Google, Outlook and calendar feeds", onClick = onOpenCalendars)
+                    NavRow("Booking messages", Icons.Outlined.NotificationsActive, "New bookings, requests and cancellations", tint = AppTheme.tokens.link, onClick = onOpenNotifications)
                     HorizontalDivider(Modifier.padding(start = 56.dp), color = AppTheme.tokens.border)
-                    NavRow("Addresses", Icons.Outlined.Place, "Places you meet in person", onClick = onOpenAddresses)
+                    NavRow("WhatsApp messages", Icons.Outlined.Forum, "Your number and message templates", tint = AppTheme.tokens.link, onClick = onOpenWhatsApp)
                     HorizontalDivider(Modifier.padding(start = 56.dp), color = AppTheme.tokens.border)
-                    NavRow("Change password", Icons.Outlined.Key, "We'll email you a code", onClick = vm::startPasswordChange)
+                    NavRow("Calendar connections", Icons.Outlined.EventAvailable, "Google, Outlook and Apple Calendar", tint = AppTheme.tokens.link, onClick = onOpenCalendars)
+                    HorizontalDivider(Modifier.padding(start = 56.dp), color = AppTheme.tokens.border)
+                    NavRow("Meeting addresses", Icons.Outlined.LocationOn, "Places you meet in person", tint = AppTheme.tokens.link, onClick = onOpenAddresses)
                 }
 
-                SectionTitle("More")
+                SectionTitle("Security")
                 SectionCard(padding = 0.dp) {
-                    NavRow("Open GlassMeet on the web", Icons.AutoMirrored.Outlined.OpenInNew, showChevron = false, onClick = { Intents.open(context, "${Backend.WEB}/dashboard") })
+                    NavRow("Change password", Icons.Outlined.Password, "We'll email you a code", tint = AppTheme.tokens.link, onClick = vm::startPasswordChange)
+                }
+
+                SectionTitle("About")
+                SectionCard(padding = 0.dp) {
+                    NavRow("Open GlassMeet on the web", Icons.Outlined.Language, showChevron = false, tint = AppTheme.tokens.link,
+                        trailing = { Icon(Icons.AutoMirrored.Outlined.OpenInNew, contentDescription = null, tint = AppTheme.tokens.textTertiary, modifier = Modifier.size(18.dp)) },
+                        onClick = { Intents.open(context, "${Backend.WEB}/dashboard") })
                     HorizontalDivider(Modifier.padding(start = 56.dp), color = AppTheme.tokens.border)
-                    NavRow("Privacy Policy", Icons.Outlined.PrivacyTip, showChevron = false, onClick = { Intents.open(context, "${Backend.WEB}/privacy") })
+                    NavRow("Privacy Policy", Icons.Outlined.Shield, tint = AppTheme.tokens.link, onClick = { Intents.customTab(context, "${Backend.WEB}/privacy") })
                     HorizontalDivider(Modifier.padding(start = 56.dp), color = AppTheme.tokens.border)
-                    NavRow("Terms", Icons.Outlined.Description, showChevron = false, onClick = { Intents.open(context, "${Backend.WEB}/terms") })
+                    NavRow("Terms of Service", Icons.Outlined.Gavel, tint = AppTheme.tokens.link, onClick = { Intents.customTab(context, "${Backend.WEB}/terms") })
                 }
 
                 SectionTitle("Account")

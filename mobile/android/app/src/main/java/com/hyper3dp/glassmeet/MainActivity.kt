@@ -29,12 +29,21 @@ class MainActivity : ComponentActivity() {
     private fun handle(intent: Intent?) {
         if (intent == null) return
         val data = intent.data ?: return
+        // https://glassmeet.run.place/... links (booking pages, meeting links in emails)
+        if (data.scheme == "https" && data.host == "glassmeet.run.place") {
+            val parts = data.pathSegments
+            if (parts.firstOrNull() == "book" && parts.size >= 2) NavRequests.openLink.value = "book:${parts[1]}"
+            else NavRequests.openLink.value = data.path + (data.query?.let { "?$it" } ?: "")
+            return
+        }
         if (data.scheme != "glassmeet") return
         when (data.host) {
             // glassmeet://auth-callback: Supabase finishes the Google / LinkedIn sign-in
             "auth-callback" -> supabase.handleDeeplinks(intent)
             // glassmeet://calendar-connections?google=finish&code=..&state=.. (or ?connect=finish&provider=microsoft..)
             "calendar-connections" -> NavRequests.calendarCallback.value = data
+            // glassmeet://book/<event type id>
+            "book" -> data.pathSegments.firstOrNull()?.let { NavRequests.openLink.value = "book:$it" }
         }
     }
 }

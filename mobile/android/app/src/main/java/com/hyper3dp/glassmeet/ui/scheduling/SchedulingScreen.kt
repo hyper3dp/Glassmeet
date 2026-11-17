@@ -27,6 +27,9 @@ import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.EditCalendar
 import androidx.compose.material.icons.outlined.FileCopy
+import androidx.compose.material.icons.outlined.PauseCircle
+import androidx.compose.material.icons.outlined.PlayCircle
+import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -74,10 +77,18 @@ import com.hyper3dp.glassmeet.util.Intents
 import kotlinx.serialization.json.JsonObject
 
 @Composable
-fun SchedulingScreen(onEdit: (String) -> Unit, onNew: () -> Unit) {
+fun SchedulingScreen(onEdit: (String) -> Unit, onNew: () -> Unit, onOpenAvailability: () -> Unit = {}) {
     val vm: SchedulingViewModel = viewModel()
     val state by vm.state.collectAsStateWithLifecycle()
     var picking by rememberSaveable { mutableStateOf(false) }
+    // the bottom bar's Create button
+    val create by com.hyper3dp.glassmeet.ui.navigation.NavRequests.createEventType.collectAsStateWithLifecycle()
+    androidx.compose.runtime.LaunchedEffect(create) {
+        if (create) {
+            com.hyper3dp.glassmeet.ui.navigation.NavRequests.createEventType.value = false
+            picking = true
+        }
+    }
     var deleting by remember { mutableStateOf<EventType?>(null) }
     val context = LocalContext.current
 
@@ -99,16 +110,26 @@ fun SchedulingScreen(onEdit: (String) -> Unit, onNew: () -> Unit) {
     ) { inner ->
         LoadableContent(state, onRetry = { vm.load() }, onRefresh = vm::refresh, modifier = Modifier.padding(top = inner.calculateTopPadding())) { d ->
             if (d.eventTypes.isEmpty()) {
-                EmptyState(
-                    Icons.Outlined.EditCalendar, "No event types yet",
-                    "An event type is a kind of meeting guests can book, like a 30 minute call.",
-                    actionLabel = "New event type", actionIcon = Icons.Filled.Add, onAction = { picking = true },
-                )
+                Column {
+                    SectionCard(Modifier.padding(start = 16.dp, end = 16.dp, top = 8.dp), padding = 0.dp) {
+                        com.hyper3dp.glassmeet.ui.components.NavRow("Availability", Icons.Outlined.Schedule, "Weekly hours, days off and holidays", onClick = onOpenAvailability)
+                    }
+                    EmptyState(
+                        Icons.Outlined.EditCalendar, "No event types yet",
+                        "An event type is a kind of meeting guests can book, like a 30 minute call.",
+                        actionLabel = "New event type", actionIcon = Icons.Filled.Add, onAction = { picking = true },
+                    )
+                }
             } else {
                 LazyColumn(
                     contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 96.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
+                    item(key = "availability") {
+                        SectionCard(padding = 0.dp) {
+                            com.hyper3dp.glassmeet.ui.components.NavRow("Availability", Icons.Outlined.Schedule, "Weekly hours, days off and holidays", onClick = onOpenAvailability)
+                        }
+                    }
                     items(d.eventTypes, key = { it.id }) { e ->
                         EventTypeCard(
                             e,
@@ -175,7 +196,6 @@ private fun EventTypeCard(
                 )
                 Text(e.summary, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 2)
             }
-            Switch(checked = e.active, onCheckedChange = onToggle)
         }
         if (!e.active) {
             Text(
@@ -202,6 +222,11 @@ private fun EventTypeCard(
                     DropdownMenuItem(text = { Text("Edit") }, leadingIcon = { Icon(Icons.Outlined.Edit, null) }, onClick = { menu = false; onEdit() })
                     DropdownMenuItem(text = { Text("Duplicate") }, leadingIcon = { Icon(Icons.Outlined.FileCopy, null) }, onClick = { menu = false; onDuplicate() })
                     DropdownMenuItem(text = { Text("Save as template") }, leadingIcon = { Icon(Icons.Outlined.Description, null) }, onClick = { menu = false; onSaveTemplate() })
+                    DropdownMenuItem(
+                        text = { Text(if (e.active) "Turn off" else "Turn on") },
+                        leadingIcon = { Icon(if (e.active) Icons.Outlined.PauseCircle else Icons.Outlined.PlayCircle, null) },
+                        onClick = { menu = false; onToggle(!e.active) },
+                    )
                     DropdownMenuItem(
                         text = { Text("Delete", color = MaterialTheme.colorScheme.error) },
                         leadingIcon = { Icon(Icons.Outlined.Delete, null, tint = MaterialTheme.colorScheme.error) },

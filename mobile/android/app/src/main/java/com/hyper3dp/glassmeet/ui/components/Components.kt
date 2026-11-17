@@ -86,6 +86,8 @@ fun TopLevelScaffold(
     title: String,
     actions: @Composable RowScope.() -> Unit = {},
     floatingActionButton: @Composable () -> Unit = {},
+    /** Set when the page is pushed (Availability from Scheduling): shows Back */
+    onBack: (() -> Unit)? = null,
     content: @Composable (PaddingValues) -> Unit,
 ) {
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
@@ -94,6 +96,9 @@ fun TopLevelScaffold(
         topBar = {
             LargeTopAppBar(
                 title = { Text(title, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                navigationIcon = {
+                    if (onBack != null) IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back") }
+                },
                 actions = actions,
                 scrollBehavior = scrollBehavior,
             )

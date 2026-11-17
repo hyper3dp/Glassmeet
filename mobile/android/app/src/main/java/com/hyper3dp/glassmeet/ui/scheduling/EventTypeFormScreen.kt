@@ -303,7 +303,8 @@ private fun FormContent(s: FormUiState, vm: EventTypeFormViewModel, modifier: Mo
         SectionCard {
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 SwitchRow("Requires approval", f.requiresApproval, { v -> edit { it.copy(requiresApproval = v) } }, subtitle = "Bookings wait as requests until you approve them")
-                SwitchRow("On", f.active, { v -> edit { it.copy(active = v) } }, subtitle = "Guests can book this event type")
+                // on and off live in the event's ⋮ menu on Scheduling
+                if (!f.active) HintText("This event is turned off. Turn it on from its ⋮ menu in Scheduling so guests can book it.")
                 if (f.kind == "group") {
                     NumberField("Group size", f.maxAttendees, { v -> edit { it.copy(maxAttendees = v) } }, Modifier.fillMaxWidth(), supporting = "Guests per time, 2 to 500")
                 }
@@ -400,8 +401,8 @@ private fun WhenSection(f: EventForm, edit: ((EventForm) -> EventForm) -> Unit) 
                 Text("Start times", style = MaterialTheme.typography.labelLarge)
                 f.fixedTimes.forEachIndexed { i, t ->
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        SelectField(
-                            "Start ${i + 1}", timeOptions(allowMidnight = false), t,
+                        com.hyper3dp.glassmeet.ui.components.TimeField(
+                            "Start ${i + 1}", t,
                             { v -> edit { it.copy(fixedTimes = it.fixedTimes.mapIndexed { j, x -> if (j == i) v else x }) } },
                             Modifier.weight(1f),
                         )

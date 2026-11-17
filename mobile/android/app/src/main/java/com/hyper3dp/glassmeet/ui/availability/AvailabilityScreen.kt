@@ -63,6 +63,8 @@ import com.hyper3dp.glassmeet.ui.components.SelectField
 import com.hyper3dp.glassmeet.ui.components.SwitchRow
 import com.hyper3dp.glassmeet.ui.components.TopLevelScaffold
 import com.hyper3dp.glassmeet.ui.components.timeOptions
+import com.hyper3dp.glassmeet.ui.components.TimeField
+import com.hyper3dp.glassmeet.ui.components.ErrorText
 import com.hyper3dp.glassmeet.ui.scheduling.WEEKDAYS
 import com.hyper3dp.glassmeet.ui.theme.AppTheme
 import com.hyper3dp.glassmeet.util.Format
@@ -71,7 +73,7 @@ import java.time.LocalDate
 private val DAY_NAMES = mapOf(0 to "Sunday", 1 to "Monday", 2 to "Tuesday", 3 to "Wednesday", 4 to "Thursday", 5 to "Friday", 6 to "Saturday")
 
 @Composable
-fun AvailabilityScreen() {
+fun AvailabilityScreen(onBack: (() -> Unit)? = null) {
     val vm: AvailabilityViewModel = viewModel()
     val state by vm.state.collectAsStateWithLifecycle()
     var adding by remember { mutableStateOf(false) }
@@ -81,6 +83,7 @@ fun AvailabilityScreen() {
 
     TopLevelScaffold(
         title = "Availability",
+        onBack = onBack,
         actions = { IconButton(onClick = { adding = true }) { Icon(Icons.Filled.Add, contentDescription = "Add a date override") } },
     ) { inner ->
         LoadableContent(state, onRetry = { vm.load() }, onRefresh = vm::refresh, modifier = Modifier.padding(top = inner.calculateTopPadding())) { d ->
@@ -260,9 +263,9 @@ private fun DayRow(
         }
         ranges.forEachIndexed { i, r ->
             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(bottom = 8.dp)) {
-                SelectField("From", timeOptions(allowMidnight = false), r.start, { s -> onChange(i, s, r.end) }, Modifier.weight(1f))
+                TimeField("From", r.start, { s -> onChange(i, s, r.end) }, Modifier.weight(1f))
                 Spacer(Modifier.width(8.dp))
-                SelectField("To", timeOptions(allowMidnight = true, from = 15), r.end, { e -> onChange(i, r.start, e) }, Modifier.weight(1f))
+                TimeField("To", r.end, { e -> onChange(i, r.start, e) }, Modifier.weight(1f), allowMidnight = true)
                 IconButton(onClick = { onRemove(i) }) { Icon(Icons.Filled.Close, contentDescription = "Remove these hours") }
             }
         }
@@ -296,16 +299,17 @@ private fun AddOverrideSheet(onSave: (LocalDate, String, Int, Int, String) -> Un
             ChoiceChips(listOf("off" to "Day off", "block" to "Block hours", "custom" to "Custom hours"), mode) { mode = it }
             if (mode != "off") {
                 Row {
-                    SelectField("From", timeOptions(allowMidnight = false), start, { start = it }, Modifier.weight(1f))
+                    TimeField("From", start, { start = it }, Modifier.weight(1f))
                     Spacer(Modifier.width(8.dp))
-                    SelectField("To", timeOptions(allowMidnight = true, from = 15), end, { end = it }, Modifier.weight(1f))
+                    TimeField("To", end, { end = it }, Modifier.weight(1f), allowMidnight = true)
                 }
+                if (end <= start) ErrorText("The end time must be after the start time.")
                 HintText(if (mode == "block") "Guests can't book these hours on this date." else "Only these hours are open on this date.")
             }
             OutlinedTextField(label, { label = it.take(80) }, label = { Text("Label (optional)") }, placeholder = { Text("Dentist") }, singleLine = true, modifier = Modifier.fillMaxWidth())
             Button(
                 onClick = { date?.let { onSave(it, mode, start, end, label) } },
-                enabled = date != null,
+                enabled = date != null && (mode == "off" || end > start),
                 modifier = Modifier.fillMaxWidth().height(52.dp),
             ) { Text("Save") }
             Spacer(Modifier.height(8.dp))
