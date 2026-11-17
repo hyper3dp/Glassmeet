@@ -66,6 +66,8 @@ const sections = [
         <p><strong>Technical information</strong></p>
         <ul>
           <li>Your browser stores a sign-in session so you stay logged in. We do not use advertising cookies, analytics tools or tracking pixels.</li>
+          <li>The iPhone and Android apps keep your sign-in session in the phone&rsquo;s secure storage, and remember small settings on the device (such as whether you&rsquo;ve seen the welcome screens). They contain no advertising, analytics or tracking code.</li>
+          <li>If you sign in with Google or LinkedIn, we receive your name, email address and profile picture from that account to create your profile.</li>
           <li>Our hosting and database providers keep standard server logs (such as IP address, browser type and time of request) for security and reliability.</li>
         </ul>
       </>
@@ -163,6 +165,28 @@ const sections = [
     ),
   },
   {
+    id: 'mobile-apps',
+    title: 'The mobile apps',
+    body: (
+      <>
+        <p>
+          The {appName} apps for iPhone and Android use the same account and data as the website, and this policy
+          applies to them in the same way.
+        </p>
+        <ul>
+          <li><strong>Photos:</strong> the apps open your photo library only when you choose a profile photo, and upload only the photo you pick.</li>
+          <li><strong>Other apps:</strong> WhatsApp, email, phone, maps and calendar apps open only when you tap a button, with the details filled in for you to send or save.</li>
+          <li><strong>Permissions:</strong> the apps don&rsquo;t read your contacts, location, microphone or camera, and they don&rsquo;t send push notifications.</li>
+          <li><strong>Calendar files:</strong> when you add your meetings to a calendar from the app, the file is made on your phone and shared only where you choose.</li>
+        </ul>
+        <p>
+          Deleting an app removes what it stored on your phone. It doesn&rsquo;t delete your account; you can do that in
+          Settings.
+        </p>
+      </>
+    ),
+  },
+  {
     id: 'sharing',
     title: 'How information is shared',
     body: (
@@ -172,7 +196,7 @@ const sections = [
           <li>
             <strong>Service providers</strong> that run {appName} for us, under contracts that limit how they use data:
             Supabase (database, authentication and server functions), GitHub Pages (hosting the web app), and
-            Google, but only if you connect Google Calendar.
+            Google or Microsoft, but only if you connect their calendars or sign in with Google.
           </li>
           <li><strong>Legal reasons:</strong> if required by law, or to protect the rights, safety or security of our users, the public or us.</li>
           <li><strong>Business changes:</strong> if {appName} is merged, acquired or transferred, information may move to the new owner under this policy.</li>
@@ -229,7 +253,8 @@ const sections = [
           uses, and to withdraw consent.
         </p>
         <p>
-          To delete your account or make any other request, email {mail} from the address on your account. We respond
+          You can delete your account and its data yourself in Settings, on the web or in the apps. To make any other
+          request, or if you can&rsquo;t sign in, email {mail} from the address on your account. We respond
           within 30 days. Guests can ask the host, or contact us. If you are in the EU or UK, you can also complain to
           your local data protection authority.
         </p>
@@ -279,7 +304,7 @@ export default function Privacy() {
   return (
     <LegalPage
       title="Privacy Policy"
-      intro={`This policy explains how ${appName} collects, uses and protects personal information about hosts who use ${appName} and guests who book time with them.`}
+      intro={`This policy explains how ${appName}, on the web and in the iPhone and Android apps, collects, uses and protects personal information about hosts who use ${appName} and guests who book time with them.`}
       sections={sections}
       otherDoc={{ to: '/terms', label: 'Terms of Service' }}
     />

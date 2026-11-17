@@ -28,11 +28,39 @@ const sections = [
     id: 'the-service',
     title: 'The service',
     body: (
-      <p>
-        {appName} lets hosts publish booking pages, set their availability, accept bookings from guests, connect a
-        calendar, and prepare WhatsApp messages and calendar invites about those bookings. Features may change over
-        time.
-      </p>
+      <>
+        <p>
+          {appName} lets hosts publish booking pages, set their availability, accept bookings from guests, connect a
+          calendar, and prepare WhatsApp messages and calendar invites about those bookings. Features may change over
+          time.
+        </p>
+        <p>
+          {appName} is available on the web and as apps for iPhone and Android. These Terms cover all of them. The apps
+          use the same account and data as the website.
+        </p>
+      </>
+    ),
+  },
+  {
+    id: 'mobile-apps',
+    title: 'The mobile apps',
+    body: (
+      <>
+        <p>
+          We give you a personal, non-transferable licence to install and use the {appName} apps on devices you own or
+          control, for as long as you follow these Terms.
+        </p>
+        <p>
+          If you got an app from the Apple App Store or Google Play, that store&rsquo;s own terms also apply to the
+          download. These Terms are between you and us, not the store, and the store has no responsibility for the app
+          or for support. Apple and its subsidiaries are third-party beneficiaries of these Terms for apps downloaded
+          from the App Store and may enforce them.
+        </p>
+        <p>
+          Keep the apps up to date. Older versions may stop working when we change the service. You are responsible for
+          your device, its security and any data charges from your mobile provider.
+        </p>
+      </>
     ),
   },
   {
@@ -159,7 +187,9 @@ const sections = [
     body: (
       <>
         <p>
-          You can stop using {appName} at any time and ask us to delete your account by emailing {mail}.
+          You can stop using {appName} at any time. You can delete your account yourself in Settings, on the web or
+          in the apps, or ask us to delete it by emailing {mail}. Deleting the apps from your phone doesn&rsquo;t
+          delete your account.
         </p>
         <p>
           We may suspend or close an account that breaks these Terms or puts others at risk, or if we must for legal
@@ -256,7 +286,7 @@ export default function Terms() {
   return (
     <LegalPage
       title="Terms of Service"
-      intro={`These Terms explain the rules for using ${appName}, as a host who runs a booking page or as a guest who books time.`}
+      intro={`These Terms explain the rules for using ${appName} on the web and in the iPhone and Android apps, as a host who runs a booking page or as a guest who books time.`}
       sections={sections}
       otherDoc={{ to: '/privacy', label: 'Privacy Policy' }}
     />

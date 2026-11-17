@@ -5,6 +5,6 @@ export const LEGAL = {
   operatorDescription: 'an independent developer (not a registered company)',
   contactEmails: ['hyper3dp@gmail.com', 'mustafa.arsalan@gmail.com'],
   jurisdiction: 'the United Arab Emirates',
-  effectiveDate: 'October 24, 2026',
+  effectiveDate: 'November 17, 2026',
   minimumAge: 16,
 };
