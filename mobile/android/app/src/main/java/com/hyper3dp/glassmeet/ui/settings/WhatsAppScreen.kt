@@ -31,6 +31,10 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.KeyboardType
@@ -177,11 +181,11 @@ fun WhatsAppScreen(onBack: () -> Unit) {
                 // one message at a time, picked here
                 var kind by androidx.compose.runtime.saveable.rememberSaveable { androidx.compose.runtime.mutableStateOf(Messages.Kind.Confirmation) }
                 val kinds = listOf(Messages.Kind.Confirmation to "Confirmation", Messages.Kind.Reminder24h to "24 h reminder", Messages.Kind.Reminder1h to "1 h reminder")
-                androidx.compose.material3.SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
+                SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
                     kinds.forEachIndexed { i, (k, label) ->
-                        androidx.compose.material3.SegmentedButton(
+                        SegmentedButton(
                             selected = kind == k, onClick = { kind = k },
-                            shape = androidx.compose.material3.SegmentedButtonDefaults.itemShape(i, kinds.size),
+                            shape = SegmentedButtonDefaults.itemShape(i, kinds.size),
                             label = { Text(label, maxLines = 1) },
                         )
                     }
