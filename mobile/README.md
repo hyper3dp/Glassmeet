@@ -9,7 +9,7 @@ Two native host apps that use the same Supabase project as the web app. Guests s
 
 Both follow `SPEC.md` (navigation, screens, states, design tokens, sign-in setup): sign in (email, Google, LinkedIn), create account and verify code, reset password, first-run onboarding, Home, Meetings and a meeting's page, Scheduling and the full event type form, Availability (weekly hours, date overrides, daily limit, UAE holidays), Analytics, Booking messages (the web's notifications), Calendar connections (subscribe feed, Google, Apple Calendar file, Microsoft), Settings (profile, photo, account deletion) and WhatsApp messages.
 
-The tab bar is Home, Meetings, Create (opens New event type), Scheduling and Settings. Availability opens from Scheduling and Settings.
+The tab bar is Home, Meetings, Scheduling, Availability and Settings. New event types start from the + button in Scheduling.
 
 ## Sign-in and links
 
@@ -36,4 +36,4 @@ Add an Appetize API token as the repository secret `APPETIZE_API_TOKEN` (`APPITI
 
 ## App icons
 
-From the brand kit's `iosicons/ver2_dark` set.
+From the brand kit's `iosicons/ver2_light` set.
