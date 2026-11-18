@@ -16,6 +16,8 @@ import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
@@ -162,24 +164,36 @@ fun WhatsAppScreen(onBack: () -> Unit) {
                 Modifier.fillMaxSize().padding(inner).verticalScroll(rememberScrollState()).imePadding().padding(horizontal = 16.dp, vertical = 8.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
+                SectionTitle("Your WhatsApp number")
                 SectionCard {
-                    Text(
-                        "GlassMeet prepares the message and opens WhatsApp; you send it.",
-                        style = MaterialTheme.typography.bodyLarge,
+                    OutlinedTextField(
+                        s.phone, vm::setPhone, singleLine = true,
+                        placeholder = { Text("+971 50 123 4567", color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)) },
+                        supportingText = { Text("With the country code. GlassMeet prepares the message and opens WhatsApp; you send it.") },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone), modifier = Modifier.fillMaxWidth(),
                     )
                 }
-                SectionTitle("Your WhatsApp number")
-                OutlinedTextField(
-                    s.phone, vm::setPhone, singleLine = true, placeholder = { Text("+971 50 123 4567") },
-                    supportingText = { Text("With the country code. Guests see it on their confirmation.") },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone), modifier = Modifier.fillMaxWidth(),
-                )
+                SectionTitle("Messages")
+                // one message at a time, picked here
+                var kind by androidx.compose.runtime.saveable.rememberSaveable { androidx.compose.runtime.mutableStateOf(Messages.Kind.Confirmation) }
+                val kinds = listOf(Messages.Kind.Confirmation to "Confirmation", Messages.Kind.Reminder24h to "24 h reminder", Messages.Kind.Reminder1h to "1 h reminder")
+                androidx.compose.material3.SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
+                    kinds.forEachIndexed { i, (k, label) ->
+                        androidx.compose.material3.SegmentedButton(
+                            selected = kind == k, onClick = { kind = k },
+                            shape = androidx.compose.material3.SegmentedButtonDefaults.itemShape(i, kinds.size),
+                            label = { Text(label, maxLines = 1) },
+                        )
+                    }
+                }
                 val sample = Messages.sample(s.hostName, ProfileRepository.zone)
-                TemplateEditor("Confirmation", s.confirmation, { vm.set(Messages.Kind.Confirmation, it) }, { vm.insert(Messages.Kind.Confirmation, it) }, { vm.reset(Messages.Kind.Confirmation) }, sample)
-                TemplateEditor("Reminder 24 hours before", s.reminder24h, { vm.set(Messages.Kind.Reminder24h, it) }, { vm.insert(Messages.Kind.Reminder24h, it) }, { vm.reset(Messages.Kind.Reminder24h) }, sample)
-                TemplateEditor("Reminder 1 hour before", s.reminder1h, { vm.set(Messages.Kind.Reminder1h, it) }, { vm.insert(Messages.Kind.Reminder1h, it) }, { vm.reset(Messages.Kind.Reminder1h) }, sample)
+                val (title, value) = when (kind) {
+                    Messages.Kind.Reminder24h -> "Reminder 24 hours before" to s.reminder24h
+                    Messages.Kind.Reminder1h -> "Reminder 1 hour before" to s.reminder1h
+                    else -> "Confirmation" to s.confirmation
+                }
+                TemplateEditor(title, value, { vm.set(kind, it) }, { vm.insert(kind, it) }, { vm.reset(kind) }, value.text != Messages.template(kind, null), sample)
                 ErrorText(s.saveError)
-                Button(onClick = vm::save, enabled = !s.saving, modifier = Modifier.fillMaxWidth().height(52.dp)) { Text("Save") }
                 HintText("Reminders aren't sent for you: open a meeting and choose the reminder to send it yourself.")
                 Spacer(Modifier.height(24.dp))
             }
@@ -194,21 +208,30 @@ private fun TemplateEditor(
     onChange: (TextFieldValue) -> Unit,
     onInsert: (String) -> Unit,
     onReset: () -> Unit,
+    changed: Boolean,
     sample: Messages.Context,
 ) {
-    SectionTitle(title, action = { TextButton(onClick = onReset) { Text("Default") } })
     SectionCard {
-        OutlinedTextField(value, onChange, minLines = 4, modifier = Modifier.fillMaxWidth())
+        Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+            Text(title, style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f))
+            if (changed) TextButton(onClick = onReset) { Text("Use default") }
+        }
+        OutlinedTextField(value, onChange, minLines = 5, modifier = Modifier.fillMaxWidth())
         Spacer(Modifier.height(8.dp))
-        FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        Text("Tap a detail to add it where the cursor is.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Row(Modifier.horizontalScroll(rememberScrollState()).padding(vertical = 4.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             Messages.PLACEHOLDERS.forEach { p -> AssistChip(onClick = { onInsert(p) }, label = { Text(p) }) }
         }
-        Spacer(Modifier.height(12.dp))
-        Text("Preview", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        Spacer(Modifier.height(6.dp))
+    }
+    SectionTitle("Preview")
+    // the message as the guest will see it, on a chat background
+    Box(
+        Modifier.fillMaxWidth().background(AppTheme.tokens.surfaceRaised, RoundedCornerShape(12.dp)).padding(12.dp),
+        contentAlignment = androidx.compose.ui.Alignment.CenterEnd,
+    ) {
         Box(
             Modifier.widthIn(max = 320.dp)
-                .background(AppTheme.tokens.whatsappBubble, RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp, bottomStart = 12.dp, bottomEnd = 4.dp))
+                .background(AppTheme.tokens.whatsappBubble, RoundedCornerShape(topStart = 12.dp, topEnd = 4.dp, bottomStart = 12.dp, bottomEnd = 12.dp))
                 .padding(horizontal = 12.dp, vertical = 8.dp),
         ) {
             Text(Messages.fill(value.text, sample), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface)

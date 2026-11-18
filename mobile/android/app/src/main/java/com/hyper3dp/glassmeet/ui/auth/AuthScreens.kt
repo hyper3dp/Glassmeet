@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardActions
@@ -113,6 +114,7 @@ private fun AuthPage(title: String, subtitle: String?, onBack: (() -> Unit)?, sh
 private fun EmailField(value: String, onChange: (String) -> Unit, imeAction: ImeAction = ImeAction.Next, onDone: () -> Unit = {}) {
     OutlinedTextField(
         value, onChange, label = { Text("Email") }, singleLine = true,
+        placeholder = { Text("name@example.com", color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)) },
         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email, imeAction = imeAction),
         keyboardActions = KeyboardActions(onDone = { onDone() }, onGo = { onDone() }),
         modifier = Modifier.fillMaxWidth(),
@@ -178,8 +180,8 @@ fun SignInScreen(onCreateAccount: () -> Unit, onForgotPassword: () -> Unit, onVe
             HorizontalDivider(Modifier.weight(1f))
         }
 
-        ProviderButton("Continue with Google", busy = state.busyProvider == "google", enabled = !state.busy, onClick = vm::google)
-        ProviderButton("Continue with LinkedIn", busy = state.busyProvider == "linkedin", enabled = !state.busy, onClick = vm::linkedIn)
+        ProviderButton("Continue with Google", R.drawable.ic_google, busy = state.busyProvider == "google", enabled = !state.busy, onClick = vm::google)
+        ProviderButton("Continue with LinkedIn", R.drawable.ic_linkedin, busy = state.busyProvider == "linkedin", enabled = !state.busy, onClick = vm::linkedIn)
 
         Spacer(Modifier.height(8.dp))
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
@@ -190,9 +192,16 @@ fun SignInScreen(onCreateAccount: () -> Unit, onForgotPassword: () -> Unit, onVe
 }
 
 @Composable
-private fun ProviderButton(text: String, busy: Boolean, enabled: Boolean, onClick: () -> Unit) {
+private fun ProviderButton(text: String, logo: Int, busy: Boolean, enabled: Boolean, onClick: () -> Unit) {
     OutlinedButton(onClick = onClick, enabled = enabled && !busy, modifier = Modifier.fillMaxWidth().height(52.dp)) {
-        if (busy) CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp) else Text(text)
+        if (busy) {
+            CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
+        } else {
+            // the provider's own logo, in its own colours
+            Image(painterResource(logo), contentDescription = null, modifier = Modifier.size(20.dp), alpha = if (enabled) 1f else 0.45f)
+            Spacer(Modifier.width(12.dp))
+            Text(text, color = MaterialTheme.colorScheme.onSurface)
+        }
     }
 }
 

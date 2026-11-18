@@ -162,13 +162,19 @@ private val tabs = listOf(
     Tab("Home", Icons.Outlined.Home, Icons.Filled.Home, HomeGraph, HomeRoute) { it.hasRoute<HomeGraph>() },
     Tab("Meetings", Icons.Outlined.Groups, Icons.Filled.Groups, MeetingsGraph, MeetingsRoute) { it.hasRoute<MeetingsGraph>() },
     Tab("Scheduling", Icons.Outlined.Link, Icons.Filled.Link, SchedulingGraph, SchedulingRoute) { it.hasRoute<SchedulingGraph>() },
+    Tab("Availability", Icons.Outlined.Schedule, Icons.Filled.Schedule, AvailabilityGraph, AvailabilityRoute) { it.hasRoute<AvailabilityGraph>() },
     Tab("Settings", Icons.Outlined.Settings, Icons.Filled.Settings, SettingsGraph, SettingsRoute) { it.hasRoute<SettingsGraph>() },
 )
 
-private fun NavHostController.switchTo(route: Any) = navigate(route) {
-    popUpTo(graph.findStartDestination().id) { saveState = true }
-    launchSingleTop = true
-    restoreState = true
+private fun NavHostController.switchTo(route: Any) {
+    // leaving Settings from one of its pages takes Settings back to its main list
+    val leavingSettings = route != SettingsGraph && currentDestination?.hierarchy?.any { it.hasRoute<SettingsGraph>() } == true
+    if (leavingSettings) popBackStack(SettingsRoute, inclusive = false)
+    navigate(route) {
+        popUpTo(graph.findStartDestination().id) { saveState = true }
+        launchSingleTop = true
+        restoreState = true
+    }
 }
 
 /** Opens a GlassMeet web path (a notification's link, or a link from outside the app). */
@@ -179,7 +185,7 @@ private fun NavHostController.openWebPath(link: String) {
             switchTo(MeetingsGraph)
             uri.getQueryParameter("id")?.let { navigate(MeetingRoute(it)) { launchSingleTop = true } }
         }
-        "availability" -> { switchTo(SchedulingGraph); navigate(AvailabilityRoute) { launchSingleTop = true } }
+        "availability" -> switchTo(AvailabilityGraph)
         "calendar-connections" -> { switchTo(SettingsGraph); navigate(CalendarConnectionsRoute) { launchSingleTop = true } }
         "event-types" -> switchTo(SchedulingGraph)
         "dashboard", "" -> switchTo(HomeGraph)
@@ -266,25 +272,7 @@ private fun MainApp() {
         snackbarHost = { SnackbarHost(snackbar) },
         bottomBar = {
             NavigationBar {
-                tabs.forEachIndexed { i, tab ->
-                    // Create sits in the middle and opens New event type in Scheduling
-                    if (i == 2) {
-                        NavigationBarItem(
-                            selected = false,
-                            onClick = {
-                                NavRequests.createEventType.value = true
-                                nav.switchTo(SchedulingGraph)
-                                nav.popBackStack(SchedulingRoute, inclusive = false)
-                            },
-                            icon = {
-                                Box(
-                                    Modifier.size(width = 48.dp, height = 32.dp).background(MaterialTheme.colorScheme.primary, androidx.compose.foundation.shape.RoundedCornerShape(16.dp)),
-                                    contentAlignment = Alignment.Center,
-                                ) { Icon(Icons.Filled.Add, contentDescription = null, tint = MaterialTheme.colorScheme.onPrimary) }
-                            },
-                            label = { Text("Create", maxLines = 1) },
-                        )
-                    }
+                tabs.forEach { tab ->
                     val selected = destination?.hierarchy?.any { tab.matches(it) } == true
                     NavigationBarItem(
                         selected = selected,
@@ -334,11 +322,12 @@ private fun MainApp() {
                     SchedulingScreen(
                         onEdit = { id -> nav.navigate(EventTypeFormRoute(id)) },
                         onNew = { nav.navigate(EventTypeFormRoute(null)) },
-                        onOpenAvailability = { nav.navigate(AvailabilityRoute) { launchSingleTop = true } },
                     )
                 }
                 composable<EventTypeFormRoute> { e -> EventTypeFormScreen(id = e.toRoute<EventTypeFormRoute>().id, onBack = { nav.popBackStack() }) }
-                composable<AvailabilityRoute> { AvailabilityScreen(onBack = { nav.popBackStack() }) }
+            }
+            navigation<AvailabilityGraph>(startDestination = AvailabilityRoute) {
+                composable<AvailabilityRoute> { AvailabilityScreen() }
             }
             navigation<SettingsGraph>(startDestination = SettingsRoute) {
                 composable<SettingsRoute> {
@@ -346,14 +335,12 @@ private fun MainApp() {
                         onOpenWhatsApp = { nav.navigate(WhatsAppRoute) },
                         onOpenCalendars = { nav.navigate(CalendarConnectionsRoute) },
                         onOpenAddresses = { nav.navigate(AddressesRoute) },
-                        onOpenAvailability = { nav.navigate(SettingsAvailabilityRoute) { launchSingleTop = true } },
-                        onOpenNotifications = {
-                            nav.switchTo(HomeGraph)
-                            nav.navigate(NotificationsRoute) { launchSingleTop = true }
-                        },
+                        onOpenNotifications = { nav.navigate(SettingsNotificationsRoute) { launchSingleTop = true } },
                     )
                 }
-                composable<SettingsAvailabilityRoute> { AvailabilityScreen(onBack = { nav.popBackStack() }) }
+                composable<SettingsNotificationsRoute> {
+                    NotificationsScreen(onBack = { nav.popBackStack() }, onOpen = { link -> nav.openWebPath(link) })
+                }
                 composable<WhatsAppRoute> { WhatsAppScreen(onBack = { nav.popBackStack() }) }
                 composable<AddressesRoute> { com.hyper3dp.glassmeet.ui.settings.AddressesScreen(onBack = { nav.popBackStack() }) }
                 composable<CalendarConnectionsRoute> { CalendarConnectionsScreen(onBack = { nav.popBackStack() }) }

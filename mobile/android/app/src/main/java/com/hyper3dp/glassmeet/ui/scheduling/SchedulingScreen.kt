@@ -77,11 +77,11 @@ import com.hyper3dp.glassmeet.util.Intents
 import kotlinx.serialization.json.JsonObject
 
 @Composable
-fun SchedulingScreen(onEdit: (String) -> Unit, onNew: () -> Unit, onOpenAvailability: () -> Unit = {}) {
+fun SchedulingScreen(onEdit: (String) -> Unit, onNew: () -> Unit) {
     val vm: SchedulingViewModel = viewModel()
     val state by vm.state.collectAsStateWithLifecycle()
     var picking by rememberSaveable { mutableStateOf(false) }
-    // the bottom bar's Create button
+    // a request from elsewhere to start a new event type
     val create by com.hyper3dp.glassmeet.ui.navigation.NavRequests.createEventType.collectAsStateWithLifecycle()
     androidx.compose.runtime.LaunchedEffect(create) {
         if (create) {
@@ -110,26 +110,16 @@ fun SchedulingScreen(onEdit: (String) -> Unit, onNew: () -> Unit, onOpenAvailabi
     ) { inner ->
         LoadableContent(state, onRetry = { vm.load() }, onRefresh = vm::refresh, modifier = Modifier.padding(top = inner.calculateTopPadding())) { d ->
             if (d.eventTypes.isEmpty()) {
-                Column {
-                    SectionCard(Modifier.padding(start = 16.dp, end = 16.dp, top = 8.dp), padding = 0.dp) {
-                        com.hyper3dp.glassmeet.ui.components.NavRow("Availability", Icons.Outlined.Schedule, "Weekly hours, days off and holidays", onClick = onOpenAvailability)
-                    }
-                    EmptyState(
-                        Icons.Outlined.EditCalendar, "No event types yet",
-                        "An event type is a kind of meeting guests can book, like a 30 minute call.",
-                        actionLabel = "New event type", actionIcon = Icons.Filled.Add, onAction = { picking = true },
-                    )
-                }
+                EmptyState(
+                    Icons.Outlined.EditCalendar, "No event types yet",
+                    "An event type is a kind of meeting guests can book, like a 30 minute call.",
+                    actionLabel = "New event type", actionIcon = Icons.Filled.Add, onAction = { picking = true },
+                )
             } else {
                 LazyColumn(
                     contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 96.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
-                    item(key = "availability") {
-                        SectionCard(padding = 0.dp) {
-                            com.hyper3dp.glassmeet.ui.components.NavRow("Availability", Icons.Outlined.Schedule, "Weekly hours, days off and holidays", onClick = onOpenAvailability)
-                        }
-                    }
                     items(d.eventTypes, key = { it.id }) { e ->
                         EventTypeCard(
                             e,

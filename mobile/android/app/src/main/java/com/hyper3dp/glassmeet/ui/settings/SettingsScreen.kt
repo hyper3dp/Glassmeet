@@ -79,7 +79,6 @@ fun SettingsScreen(
     onOpenWhatsApp: () -> Unit,
     onOpenCalendars: () -> Unit,
     onOpenAddresses: () -> Unit,
-    onOpenAvailability: () -> Unit = {},
     onOpenNotifications: () -> Unit = {},
 ) {
     val vm: SettingsViewModel = viewModel()
@@ -165,8 +164,6 @@ fun SettingsScreen(
 
                 SectionTitle("Scheduling")
                 SectionCard(padding = 0.dp) {
-                    NavRow("Availability", Icons.Outlined.Schedule, "Weekly hours, days off and holidays", tint = AppTheme.tokens.link, onClick = onOpenAvailability)
-                    HorizontalDivider(Modifier.padding(start = 56.dp), color = AppTheme.tokens.border)
                     NavRow("Booking messages", Icons.Outlined.NotificationsActive, "New bookings, requests and cancellations", tint = AppTheme.tokens.link, onClick = onOpenNotifications)
                     HorizontalDivider(Modifier.padding(start = 56.dp), color = AppTheme.tokens.border)
                     NavRow("WhatsApp messages", Icons.Outlined.Forum, "Your number and message templates", tint = AppTheme.tokens.link, onClick = onOpenWhatsApp)
@@ -174,11 +171,6 @@ fun SettingsScreen(
                     NavRow("Calendar connections", Icons.Outlined.EventAvailable, "Google, Outlook and Apple Calendar", tint = AppTheme.tokens.link, onClick = onOpenCalendars)
                     HorizontalDivider(Modifier.padding(start = 56.dp), color = AppTheme.tokens.border)
                     NavRow("Meeting addresses", Icons.Outlined.LocationOn, "Places you meet in person", tint = AppTheme.tokens.link, onClick = onOpenAddresses)
-                }
-
-                SectionTitle("Security")
-                SectionCard(padding = 0.dp) {
-                    NavRow("Change password", Icons.Outlined.Password, "We'll email you a code", tint = AppTheme.tokens.link, onClick = vm::startPasswordChange)
                 }
 
                 SectionTitle("About")
@@ -192,12 +184,17 @@ fun SettingsScreen(
                     NavRow("Terms of Service", Icons.Outlined.Gavel, tint = AppTheme.tokens.link, onClick = { Intents.customTab(context, "${Backend.WEB}/terms") })
                 }
 
-                SectionTitle("Account")
                 SectionCard(padding = 0.dp) {
                     NavRow("Sign out", Icons.AutoMirrored.Outlined.Logout, showChevron = false, onClick = { confirmSignOut = true })
+                }
+
+                Text("Danger zone", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(top = 16.dp, start = 4.dp))
+                SectionCard(padding = 0.dp) {
+                    NavRow("Change password", Icons.Outlined.Password, "We'll email you a code. Works for Google and LinkedIn sign-ups too.", tint = AppTheme.tokens.link, onClick = vm::startPasswordChange)
                     HorizontalDivider(Modifier.padding(start = 56.dp), color = AppTheme.tokens.border)
                     NavRow(
-                        "Delete account", Icons.Outlined.Delete, tint = MaterialTheme.colorScheme.error, titleColor = MaterialTheme.colorScheme.error,
+                        "Delete account", Icons.Outlined.Delete, "Permanently removes your account and everything in it",
+                        tint = MaterialTheme.colorScheme.error, titleColor = MaterialTheme.colorScheme.error,
                         showChevron = false, onClick = { deleteOpen = true },
                     )
                 }

@@ -10,6 +10,7 @@ import kotlinx.serialization.Serializable
 @Serializable object HomeGraph
 @Serializable object MeetingsGraph
 @Serializable object SchedulingGraph
+@Serializable object AvailabilityGraph
 @Serializable object SettingsGraph
 
 @Serializable object HomeRoute
@@ -23,10 +24,10 @@ import kotlinx.serialization.Serializable
 
 /** id = null: a new event type, started from [EventTypeSeed] when one is set. */
 @Serializable data class EventTypeFormRoute(val id: String? = null)
-/** Availability is a page of Scheduling (and Settings), not a tab. */
 @Serializable object AvailabilityRoute
-@Serializable object SettingsAvailabilityRoute
 @Serializable object NotificationsRoute
+/** Booking messages opened from Settings (its own type, so it stays in the Settings tab). */
+@Serializable object SettingsNotificationsRoute
 @Serializable object SettingsRoute
 @Serializable object WhatsAppRoute
 @Serializable object AddressesRoute
@@ -49,7 +50,7 @@ object NavRequests {
     /** A GlassMeet link opened from outside: "book:<event type id>" or a web path like /bookings?id=… */
     val openLink = MutableStateFlow<String?>(null)
 
-    /** The tab bar's Create button: Scheduling opens its New event type sheet. */
+    /** Scheduling opens its New event type sheet. */
     val createEventType = MutableStateFlow(false)
 }
 

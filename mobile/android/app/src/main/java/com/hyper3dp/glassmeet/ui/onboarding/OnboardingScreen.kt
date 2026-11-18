@@ -1,3 +1,5 @@
+@file:OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
+
 package com.hyper3dp.glassmeet.ui.onboarding
 
 import android.content.Context
@@ -54,7 +56,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -99,8 +100,8 @@ object Onboarding {
 private val LOCATIONS = listOf("WhatsApp call", "Google Meet", "Phone call", "Zoom")
 
 /**
- * First run after signing up: what GlassMeet does, the host's name and WhatsApp number, a first
- * event type, and its link to share.
+ * First run after signing up: what GlassMeet does, the host's name and WhatsApp number, their
+ * weekly hours, a first event type, and its link to share. Every step is needed, so there is no Skip.
  */
 @Composable
 fun OnboardingScreen(hasEventTypes: Boolean, onFinish: () -> Unit) {
@@ -113,16 +114,20 @@ fun OnboardingScreen(hasEventTypes: Boolean, onFinish: () -> Unit) {
     var eventName by rememberSaveable { mutableStateOf("30 minute meeting") }
     var duration by rememberSaveable { mutableStateOf(30) }
     var location by rememberSaveable { mutableStateOf(LOCATIONS[0]) }
+    // weekly hours: the days (0 = Sunday) and one time range for all of them, Monday to Friday 9 to 5 to start
+    var days by rememberSaveable { mutableStateOf(listOf(1, 2, 3, 4, 5)) }
+    var from by rememberSaveable { mutableStateOf(9 * 60) }
+    var to by rememberSaveable { mutableStateOf(17 * 60) }
     var created by remember { mutableStateOf<EventType?>(null) }
     var busy by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
-    val steps = 4
+    val steps = 5
 
     fun go(back: Boolean = false) {
         error = null
         var target = (step + if (back) -1 else 1).coerceIn(0, steps - 1)
         // a host who already has event types doesn't need a first one
-        if (target == 2 && hasEventTypes) target = if (back) 1 else 3
+        if (target == 3 && hasEventTypes) target = if (back) 2 else 4
         step = target
     }
 
@@ -150,6 +155,23 @@ fun OnboardingScreen(hasEventTypes: Boolean, onFinish: () -> Unit) {
                 }
             }
             2 -> {
+                if (days.isEmpty()) { error = "Pick at least one day."; return }
+                if (to <= from) { error = "The end time must be after the start time."; return }
+                busy = true
+                scope.launch {
+                    try {
+                        // replaces the weekly hours with the chosen days and times
+                        com.hyper3dp.glassmeet.data.AvailabilityRepository.rules().forEach { com.hyper3dp.glassmeet.data.AvailabilityRepository.deleteRule(it.id) }
+                        days.sorted().forEach { com.hyper3dp.glassmeet.data.AvailabilityRepository.addRule(it, from, to) }
+                        go()
+                    } catch (e: Exception) {
+                        error = e.friendly("Your hours weren't saved.")
+                    } finally {
+                        busy = false
+                    }
+                }
+            }
+            3 -> {
                 if (eventName.isBlank()) { error = "Give the event a name."; return }
                 busy = true
                 scope.launch {
@@ -168,13 +190,13 @@ fun OnboardingScreen(hasEventTypes: Boolean, onFinish: () -> Unit) {
         }
     }
 
-    BackHandler(enabled = step in 1..2) { go(back = true) }
+    BackHandler(enabled = step in 1..3) { go(back = true) }
 
     Column(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background).statusBarsPadding().navigationBarsPadding().imePadding()) {
-        // top bar: back, progress, skip
+        // top bar: back and progress
         Row(Modifier.fillMaxWidth().heightIn(min = 56.dp).padding(horizontal = 4.dp), verticalAlignment = Alignment.CenterVertically) {
             Box(Modifier.size(48.dp)) {
-                if (step in 1..2) IconButton(onClick = { go(back = true) }) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back") }
+                if (step in 1..3) IconButton(onClick = { go(back = true) }) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back") }
             }
             Row(
                 Modifier.weight(1f).semantics { contentDescription = "Step ${step + 1} of $steps" },
@@ -187,9 +209,7 @@ fun OnboardingScreen(hasEventTypes: Boolean, onFinish: () -> Unit) {
                     )
                 }
             }
-            Box(Modifier.width(72.dp), contentAlignment = Alignment.CenterEnd) {
-                if (step < steps - 1) TextButton(onClick = onFinish) { Text("Skip") }
-            }
+            Box(Modifier.size(48.dp))
         }
 
         AnimatedContent(
@@ -236,9 +256,28 @@ fun OnboardingScreen(hasEventTypes: Boolean, onFinish: () -> Unit) {
                                 }
                             }
                         }
-                        Text("Your hours start as Monday to Friday, 9:00 to 17:00. Change them any time in Availability.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                     2 -> {
+                        Heading("Your hours", "Guests can only book you on these days and times. You can add breaks, days off and different hours per day later in Availability.")
+                        Text("Days", style = MaterialTheme.typography.titleSmall)
+                        // the week starts on the phone's first weekday
+                        val first = java.time.temporal.WeekFields.of(java.util.Locale.getDefault()).firstDayOfWeek.value % 7
+                        androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            (0 until 7).map { (first + it) % 7 }.forEach { day ->
+                                FilterChip(
+                                    selected = day in days,
+                                    onClick = { days = if (day in days) days - day else days + day; error = null },
+                                    label = { Text(listOf("Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat")[day]) },
+                                )
+                            }
+                        }
+                        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                            com.hyper3dp.glassmeet.ui.components.TimeField("From", from, { from = it; error = null }, Modifier.weight(1f))
+                            com.hyper3dp.glassmeet.ui.components.TimeField("To", to, { to = it; error = null }, Modifier.weight(1f), allowMidnight = true)
+                        }
+                        if (to <= from) ErrorText("The end time must be after the start time.")
+                    }
+                    3 -> {
                         Heading("Your first event type", "An event type is a meeting guests can book. You can change everything later.")
                         OutlinedTextField(eventName, { eventName = it.take(80) }, label = { Text("Name") }, singleLine = true, modifier = Modifier.fillMaxWidth())
                         Text("How long", style = MaterialTheme.typography.titleSmall)
@@ -286,7 +325,7 @@ fun OnboardingScreen(hasEventTypes: Boolean, onFinish: () -> Unit) {
                                 }
                             }
                         }
-                        Tip(Icons.Outlined.AddCircleOutline, "Tap Create in the bottom bar to add more event types.")
+                        Tip(Icons.Outlined.AddCircleOutline, "Tap + in Scheduling to add more event types.")
                         Tip(Icons.Outlined.Notifications, "New bookings show up in Booking messages on Home.")
                         Tip(Icons.Outlined.EventAvailable, "Connect your calendar in Settings so busy times stay off your page.")
                     }
@@ -296,11 +335,11 @@ fun OnboardingScreen(hasEventTypes: Boolean, onFinish: () -> Unit) {
         }
 
         Button(
-            onClick = { next() }, enabled = !busy,
+            onClick = { next() }, enabled = !busy && (step != 1 || name.isNotBlank()) && (step != 2 || (days.isNotEmpty() && to > from)),
             modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 12.dp).height(52.dp),
         ) {
             if (busy) CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp, color = MaterialTheme.colorScheme.onPrimary)
-            else Text(when (step) { 0 -> "Get started"; 1 -> "Continue"; 2 -> "Create event type"; else -> "Go to Home" })
+            else Text(when (step) { 0 -> "Get started"; 1, 2 -> "Continue"; 3 -> "Create event type"; else -> "Go to Home" })
         }
     }
 }
