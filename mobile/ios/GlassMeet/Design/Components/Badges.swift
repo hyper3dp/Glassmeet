@@ -82,10 +82,11 @@ struct SettingsLabel: View {
     var systemImage: String
     var color: Color = Theme.primary
     var glyph: Color = Theme.onPrimary
+    var textColor: Color = Theme.text
 
     var body: some View {
         Label {
-            Text(title).foregroundStyle(Theme.text)
+            Text(title).foregroundStyle(textColor)
         } icon: {
             IconTile(systemImage: systemImage, color: color, glyph: glyph)
         }

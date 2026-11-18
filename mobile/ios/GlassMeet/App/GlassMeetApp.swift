@@ -133,8 +133,7 @@ struct MainTabView: View {
     private func tabs(_ router: Router) -> some View {
         @Bindable var router = router
         let selection = $router.tabSelection
-        // The system tab bar floats over the content on Liquid Glass and shrinks while scrolling
-        // down. Create sits in the middle and opens the new event type sheet.
+        // The system tab bar floats over the content on Liquid Glass and shrinks while scrolling down.
         if #available(iOS 18, *) {
             TabView(selection: selection) {
                 Tab("Home", systemImage: "house", value: AppTab.home) {
@@ -144,11 +143,11 @@ struct MainTabView: View {
                 Tab("Meetings", systemImage: "person.2", value: AppTab.meetings) {
                     TabStack(path: $router.meetingsPath) { MeetingsView() }
                 }
-                Tab("Create", systemImage: "plus.circle.fill", value: AppTab.create) {
-                    Color.clear
-                }
                 Tab("Scheduling", systemImage: "link", value: AppTab.scheduling) {
                     TabStack(path: $router.schedulingPath) { SchedulingView() }
+                }
+                Tab("Availability", systemImage: "clock", value: AppTab.availability) {
+                    TabStack(path: $router.availabilityPath) { AvailabilityView() }
                 }
                 Tab("Settings", systemImage: "gearshape", value: AppTab.settings) {
                     TabStack(path: $router.settingsPath) { SettingsView() }
@@ -163,10 +162,10 @@ struct MainTabView: View {
                     .badge(data.unreadCount)
                 TabStack(path: $router.meetingsPath) { MeetingsView() }
                     .tabItem { Label("Meetings", systemImage: "person.2") }.tag(AppTab.meetings)
-                Color.clear
-                    .tabItem { Label("Create", systemImage: "plus.circle.fill") }.tag(AppTab.create)
                 TabStack(path: $router.schedulingPath) { SchedulingView() }
                     .tabItem { Label("Scheduling", systemImage: "link") }.tag(AppTab.scheduling)
+                TabStack(path: $router.availabilityPath) { AvailabilityView() }
+                    .tabItem { Label("Availability", systemImage: "clock") }.tag(AppTab.availability)
                 TabStack(path: $router.settingsPath) { SettingsView() }
                     .tabItem { Label("Settings", systemImage: "gearshape") }.tag(AppTab.settings)
             }
@@ -191,7 +190,6 @@ struct TabStack<Content: View>: View {
                     case .whatsApp: WhatsAppSettingsView()
                     case .calendarConnections: CalendarConnectionsView()
                     case .addresses: AddressesView()
-                    case .availability: AvailabilityView()
                     case .notifications: NotificationsView()
                     }
                 }

@@ -8,27 +8,13 @@ struct SchedulingView: View {
     @State private var error: String?
     @State private var toast: String?
 
-    /// The New event type sheet; the tab bar's Create button opens it too
+    /// The New event type sheet
     private var picking: Binding<Bool> {
         Binding(get: { router.pickingTemplate }, set: { router.pickingTemplate = $0 })
     }
 
     var body: some View {
         List {
-            Section {
-                NavigationLink(value: Route.availability) {
-                    HStack(spacing: Theme.Space.s) {
-                        IconTile(systemImage: "clock.fill", color: Theme.primary, size: 36)
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("Availability").font(.headline).foregroundStyle(Theme.text)
-                            Text("Weekly hours, days off and holidays").font(.subheadline).foregroundStyle(Theme.textSecondary)
-                        }
-                    }
-                    .padding(.vertical, 2)
-                }
-            }
-            .listRowBackground(Theme.surface)
-
             if data.eventTypes.isEmpty, data.eventTypesState.isLoaded {
                 Section {
                     EmptyStateView(title: "Create your first event type", systemImage: "link.badge.plus",

@@ -2,14 +2,15 @@ import Supabase
 import SwiftUI
 import UIKit
 
-/// First run after signing up: what GlassMeet does, the host's name and WhatsApp number, a
-/// first event type, and its link to share. Shown once per account on this phone.
+/// First run after signing up: what GlassMeet does, the host's name and WhatsApp number, their
+/// weekly hours, a first event type, and its link to share. Every step is needed, so there is no
+/// Skip. Shown once per account on this phone.
 struct OnboardingView: View {
     var finish: () -> Void
     @Environment(Session.self) private var session
     @Environment(AppData.self) private var data
 
-    private enum Step: Int, CaseIterable { case welcome, aboutYou, firstEvent, done }
+    private enum Step: Int, CaseIterable { case welcome, aboutYou, hours, firstEvent, done }
 
     @State private var step: Step = .welcome
     @State private var name = ""
@@ -17,6 +18,10 @@ struct OnboardingView: View {
     @State private var eventName = "30 minute meeting"
     @State private var duration = 30
     @State private var location = "WhatsApp call"
+    /// Weekly hours: the days (0 = Sunday) and one time range for all of them, Monday to Friday 9 to 5 to start
+    @State private var days: Set<Int> = [1, 2, 3, 4, 5]
+    @State private var from = Self.time(9 * 60)
+    @State private var to = Self.time(17 * 60)
     @State private var created: EventType?
     @State private var busy = false
     @State private var error: String?
@@ -33,6 +38,7 @@ struct OnboardingView: View {
                     switch step {
                     case .welcome: welcome
                     case .aboutYou: aboutYou
+                    case .hours: hours
                     case .firstEvent: firstEvent
                     case .done: done
                     }
@@ -83,13 +89,7 @@ struct OnboardingView: View {
             .accessibilityElement()
             .accessibilityLabel("Step \(step.rawValue + 1) of \(Step.allCases.count)")
             Spacer()
-            if step != .done {
-                Button("Skip") { finish() }
-                    .font(.subheadline.weight(.semibold))
-                    .frame(minWidth: Theme.minTouch, minHeight: Theme.minTouch)
-            } else {
-                Color.clear.frame(width: Theme.minTouch, height: Theme.minTouch)
-            }
+            Color.clear.frame(width: Theme.minTouch, height: Theme.minTouch)
         }
         .padding(.horizontal, Theme.Space.s)
         .tint(Theme.link)
@@ -115,7 +115,7 @@ struct OnboardingView: View {
     private var primaryTitle: String {
         switch step {
         case .welcome: "Get started"
-        case .aboutYou: "Continue"
+        case .aboutYou, .hours: "Continue"
         case .firstEvent: "Create event type"
         case .done: "Go to Home"
         }
@@ -124,6 +124,7 @@ struct OnboardingView: View {
     private var canContinue: Bool {
         switch step {
         case .aboutYou: !name.trimmingCharacters(in: .whitespaces).isEmpty
+        case .hours: !days.isEmpty && Self.minutes(to) > Self.minutes(from)
         case .firstEvent: !eventName.trimmingCharacters(in: .whitespaces).isEmpty
         default: true
         }
@@ -188,9 +189,51 @@ struct OnboardingView: View {
                 }
             }
             .card()
-            Text("Your hours start as Monday to Friday, 9:00 to 17:00. Change them any time in Availability.")
-                .font(.footnote).foregroundStyle(Theme.textSecondary)
         }
+    }
+
+    private static let dayLetters = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
+
+    private var hours: some View {
+        VStack(alignment: .leading, spacing: Theme.Space.l) {
+            heading("Your hours", "Guests can only book you on these days and times. You can add breaks, days off and different hours per day later in Availability.")
+            VStack(alignment: .leading, spacing: Theme.Space.xs) {
+                Text("Days").font(.subheadline.weight(.semibold)).foregroundStyle(Theme.text)
+                // the week starts on the phone's first weekday
+                let first = Calendar.current.firstWeekday - 1
+                FlowLayout(spacing: 6) {
+                    ForEach(0..<7, id: \.self) { i in
+                        let day = (first + i) % 7
+                        ChoiceChip(title: Self.dayLetters[day], selected: days.contains(day)) {
+                            if days.contains(day) { days.remove(day) } else { days.insert(day) }
+                        }
+                    }
+                }
+            }
+            VStack(spacing: 0) {
+                DatePicker("From", selection: $from, displayedComponents: .hourAndMinute)
+                    .frame(minHeight: Theme.minTouch)
+                Divider()
+                DatePicker("To", selection: $to, displayedComponents: .hourAndMinute)
+                    .frame(minHeight: Theme.minTouch)
+            }
+            .foregroundStyle(Theme.text)
+            .card(padding: Theme.Space.s)
+            if days.isEmpty {
+                InlineError(text: "Pick at least one day.")
+            } else if Self.minutes(to) <= Self.minutes(from) {
+                InlineError(text: "The end time must be after the start time.")
+            }
+        }
+    }
+
+    private static func time(_ minutes: Int) -> Date {
+        Calendar.current.date(bySettingHour: minutes / 60, minute: minutes % 60, second: 0, of: .now) ?? .now
+    }
+
+    private static func minutes(_ date: Date) -> Int {
+        let c = Calendar.current.dateComponents([.hour, .minute], from: date)
+        return (c.hour ?? 0) * 60 + (c.minute ?? 0)
     }
 
     private var zoneName: String {
@@ -265,7 +308,7 @@ struct OnboardingView: View {
                 .card()
             }
             VStack(alignment: .leading, spacing: Theme.Space.s) {
-                tip("plus.circle", "Tap Create in the tab bar to add more event types.")
+                tip("plus.circle", "Tap + in Scheduling to add more event types.")
                 tip("bell", "New bookings show up in Booking messages on Home.")
                 tip("calendar.badge.checkmark", "Connect your calendar in Settings so busy times stay off your page.")
             }
@@ -298,7 +341,7 @@ struct OnboardingView: View {
         focused = false
         var target = Step(rawValue: step.rawValue + (back ? -1 : 1)) ?? .done
         // a host who already has event types doesn't need a first one
-        if target == .firstEvent, !data.eventTypes.isEmpty { target = back ? .aboutYou : .done }
+        if target == .firstEvent, !data.eventTypes.isEmpty { target = back ? .hours : .done }
         step = target
     }
 
@@ -308,6 +351,8 @@ struct OnboardingView: View {
             go()
         case .aboutYou:
             if await saveProfile() { go() }
+        case .hours:
+            if await saveHours() { go() }
         case .firstEvent:
             if await createEvent() { go() }
         case .done:
@@ -334,6 +379,21 @@ struct OnboardingView: View {
             return true
         } catch {
             self.error = "Your details weren’t saved. \(error.readable)"
+            return false
+        }
+    }
+
+    /// Replaces the weekly hours with the chosen days and times
+    private func saveHours() async -> Bool {
+        busy = true
+        defer { busy = false }
+        let start = Self.minutes(from), end = Self.minutes(to)
+        do {
+            for rule in try await AvailabilityAPI.rules() { try await AvailabilityAPI.deleteRule(rule.id) }
+            for day in days.sorted() { _ = try await AvailabilityAPI.insertRule(day: day, start: start, end: end) }
+            return true
+        } catch {
+            self.error = "Your hours weren’t saved. \(error.readable)"
             return false
         }
     }

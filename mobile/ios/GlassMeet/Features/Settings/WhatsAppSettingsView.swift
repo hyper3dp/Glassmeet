@@ -13,6 +13,7 @@ struct WhatsAppSettingsView: View {
     @State private var saved = Snapshot()
     @State private var error: String?
     @State private var toast: String?
+    @State private var editing: Messages.Kind = .confirmation
 
     private struct Snapshot: Equatable {
         var phone = ""
@@ -37,9 +38,31 @@ struct WhatsAppSettingsView: View {
             }
             .listRowBackground(Theme.surface)
 
-            TemplateSection(title: "Confirmation", text: $confirmation, sample: sample, fallback: Messages.confirmation)
-            TemplateSection(title: "Reminder 24 hours before", text: $reminder24h, sample: sample, fallback: Messages.reminder24h)
-            TemplateSection(title: "Reminder 1 hour before", text: $reminder1h, sample: sample, fallback: Messages.reminder1h)
+            Section {
+                Picker("Message", selection: $editing) {
+                    Text("Confirmation").tag(Messages.Kind.confirmation)
+                    Text("24 h reminder").tag(Messages.Kind.reminder24h)
+                    Text("1 h reminder").tag(Messages.Kind.reminder1h)
+                }
+                .pickerStyle(.segmented)
+                .listRowInsets(EdgeInsets())
+                .listRowBackground(Color.clear)
+            } header: {
+                Text("Messages")
+            }
+
+            switch editing {
+            case .reminder24h:
+                TemplateSection(title: "Reminder 24 hours before", text: $reminder24h, sample: sample, fallback: Messages.reminder24h)
+            case .reminder1h:
+                TemplateSection(title: "Reminder 1 hour before", text: $reminder1h, sample: sample, fallback: Messages.reminder1h)
+            default:
+                TemplateSection(title: "Confirmation", text: $confirmation, sample: sample, fallback: Messages.confirmation)
+            }
+
+            Section {} footer: {
+                Text("Reminders aren’t sent for you: open a meeting and choose the reminder to send it yourself.")
+            }
         }
         .scrollContentBackground(.hidden)
         .background(Theme.background)
@@ -100,32 +123,49 @@ private struct TemplateSection: View {
     var body: some View {
         Section {
             TextField(title, text: $text, axis: .vertical)
-                .lineLimit(3...12)
+                .lineLimit(4...14)
                 .font(.subheadline)
+                .padding(.vertical, Theme.Space.xxs)
                 .onChange(of: text) { _, new in if new.count > 2000 { text = String(new.prefix(2000)) } }
-            VStack(alignment: .leading, spacing: Theme.Space.xs) {
-                Text("Insert").font(.footnote.weight(.semibold)).foregroundStyle(Theme.textSecondary)
-                FlowLayout(spacing: 6) {
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 6) {
                     ForEach(Messages.placeholders, id: \.self) { token in
                         ChoiceChip(title: token) {
                             text += (text.hasSuffix(" ") || text.hasSuffix("\n") || text.isEmpty ? "" : " ") + token
                         }
                     }
                 }
+                .padding(.horizontal, Theme.Space.m)
             }
-            .padding(.vertical, Theme.Space.xxs)
-            VStack(alignment: .leading, spacing: Theme.Space.xs) {
-                Text("Preview").font(.footnote.weight(.semibold)).foregroundStyle(Theme.textSecondary)
-                MessageBubble(text: Messages.fill(text, sample))
-            }
-            .padding(.vertical, Theme.Space.xxs)
-            if text != fallback {
-                Button("Use the default message") { text = fallback }
-                    .font(.subheadline)
-                    .foregroundStyle(Theme.link)
-            }
+            .listRowInsets(EdgeInsets())
+            .accessibilityLabel("Add a detail")
         } header: {
-            Text(title)
+            HStack {
+                Text(title)
+                Spacer()
+                if text != fallback {
+                    Button("Use default") { text = fallback }
+                        .font(.footnote.weight(.semibold))
+                        .foregroundStyle(Theme.link)
+                        .textCase(nil)
+                }
+            }
+        } footer: {
+            Text("Tap a detail to add it. Each one is filled in for the guest.")
+        }
+        .listRowBackground(Theme.surface)
+
+        Section {
+            VStack(alignment: .trailing, spacing: 4) {
+                MessageBubble(text: Messages.fill(text, sample))
+                    .frame(maxWidth: 300, alignment: .trailing)
+            }
+            .frame(maxWidth: .infinity, alignment: .trailing)
+            .padding(Theme.Space.s)
+            .background(Theme.surfaceRaised, in: .rect(cornerRadius: Theme.Radius.field))
+            .listRowInsets(EdgeInsets(top: 6, leading: 6, bottom: 6, trailing: 6))
+        } header: {
+            Text("Preview")
         }
         .listRowBackground(Theme.surface)
     }

@@ -1,9 +1,9 @@
 import Foundation
 import Observation
 
-/// The tab bar: four sections and a Create button in the middle
+/// The five sections, drawn by the system tab bar
 enum AppTab: Hashable {
-    case home, meetings, create, scheduling, settings
+    case home, meetings, scheduling, availability, settings
 }
 
 /// Pages pushed inside a tab
@@ -15,7 +15,6 @@ enum Route: Hashable {
     case whatsApp
     case calendarConnections
     case addresses
-    case availability
     case notifications
 }
 
@@ -39,18 +38,21 @@ final class Router {
     var homePath: [Route] = []
     var meetingsPath: [Route] = []
     var schedulingPath: [Route] = []
+    var availabilityPath: [Route] = []
     var settingsPath: [Route] = []
     var meetingFilter: MeetingFilter = .upcoming
     /// A glassmeet://calendar-connections return that arrived from outside the app
     var calendarCallback: URL?
-    /// The tab bar's Create button: Scheduling opens its "New event type" sheet
+    /// Scheduling's "New event type" sheet
     var pickingTemplate = false
 
-    /// The tab bar selection; Create never stays selected, it opens the new event type sheet
+    /// The tab bar selection. Leaving Settings from one of its pages takes Settings back to its
+    /// main list, so the next visit starts there.
     var tabSelection: AppTab {
         get { tab }
         set {
-            if newValue == .create { createEventType() } else { tab = newValue }
+            if tab == .settings, newValue != .settings { settingsPath = [] }
+            tab = newValue
         }
     }
 
@@ -72,8 +74,8 @@ final class Router {
     }
 
     func openAvailability() {
-        tab = .scheduling
-        schedulingPath = [.availability]
+        availabilityPath = []
+        tab = .availability
     }
 
     func openCalendarConnections(with callback: URL?) {
@@ -106,6 +108,7 @@ final class Router {
         homePath = []
         meetingsPath = []
         schedulingPath = []
+        availabilityPath = []
         settingsPath = []
         meetingFilter = .upcoming
         pickingTemplate = false

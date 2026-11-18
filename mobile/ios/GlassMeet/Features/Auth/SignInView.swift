@@ -33,10 +33,10 @@ struct SignInView: View {
             divider
 
             VStack(spacing: Theme.Space.s) {
-                ProviderButton(title: "Continue with Google", icon: "g.circle.fill", busy: busy == .google) {
+                ProviderButton(title: "Continue with Google", logo: "GoogleLogo", busy: busy == .google) {
                     Task { await oauth(.google, .google) }
                 }
-                ProviderButton(title: "Continue with LinkedIn", icon: "link.circle.fill", busy: busy == .linkedIn) {
+                ProviderButton(title: "Continue with LinkedIn", logo: "LinkedInLogo", busy: busy == .linkedIn) {
                     Task { await oauth(.linkedinOIDC, .linkedIn) }
                 }
             }
@@ -99,7 +99,8 @@ struct SignInView: View {
 /// An outlined capsule for a sign-in provider
 private struct ProviderButton: View {
     var title: String
-    var icon: String
+    /// The provider's own logo, from the asset catalog
+    var logo: String
     var busy: Bool
     var action: () -> Void
     @Environment(\.isEnabled) private var isEnabled
@@ -107,7 +108,9 @@ private struct ProviderButton: View {
     var body: some View {
         Button(action: action) {
             HStack(spacing: Theme.Space.s) {
-                Image(systemName: icon).font(.title3).frame(width: 24)
+                Image(logo).resizable().scaledToFit().frame(width: 22, height: 22)
+                    .opacity(isEnabled ? 1 : 0.45)
+                    .accessibilityHidden(true)
                 Text(title).font(.headline)
                 Spacer(minLength: 0)
                 if busy { ProgressView() }

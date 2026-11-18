@@ -66,26 +66,32 @@ struct AuthField: View {
             Group {
                 switch kind {
                 case .password, .newPassword:
-                    SecureField(title, text: $text)
+                    SecureField(title, text: $text, prompt: hint(title))
                         .textContentType(kind == .password ? .password : .newPassword)
                 case .email:
-                    TextField("name@example.com", text: $text)
+                    TextField("Email", text: $text, prompt: hint("name@example.com"))
                         .textContentType(.username)
                         .keyboardType(.emailAddress)
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()
                 case .name:
-                    TextField("Your full name", text: $text)
+                    TextField("Name", text: $text, prompt: hint("Your full name"))
                         .textContentType(.name)
                 case .code:
-                    TextField("123456", text: $text)
+                    TextField("Code", text: $text, prompt: hint("123456"))
                         .textContentType(.oneTimeCode)
                         .keyboardType(.numberPad)
                         .font(.title3.monospacedDigit())
                 }
             }
+            .foregroundStyle(Theme.text)
             .fieldBackground()
         }
+    }
+
+    /// Example text in a light grey, so it never reads as something already typed
+    private func hint(_ text: String) -> Text {
+        Text(text).foregroundStyle(Theme.textTertiary.opacity(0.75))
     }
 }
 

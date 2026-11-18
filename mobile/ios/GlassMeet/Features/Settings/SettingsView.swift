@@ -36,9 +36,6 @@ struct SettingsView: View {
             .listRowBackground(Theme.surface)
 
             Section {
-                NavigationLink(value: Route.availability) {
-                    SettingsLabel(title: "Availability", systemImage: "clock.fill", color: Theme.primary)
-                }
                 NavigationLink(value: Route.notifications) {
                     SettingsLabel(title: "Booking messages", systemImage: "bell.badge.fill", color: Color(uiColor: UIColor(hex: 0xFF3B30)), glyph: .white)
                 }
@@ -51,20 +48,6 @@ struct SettingsView: View {
                 NavigationLink(value: Route.addresses) {
                     SettingsLabel(title: "Meeting addresses", systemImage: "mappin.circle.fill", color: Color(uiColor: UIColor(hex: 0xF29D38)), glyph: .white)
                 }
-            }
-            .listRowBackground(Theme.surface)
-
-            Section {
-                Button { Task { await sendReset() } } label: {
-                    HStack {
-                        SettingsLabel(title: "Change password", systemImage: "lock.rotation", color: Color(uiColor: UIColor(hex: 0x8E8E93)), glyph: .white)
-                        Spacer()
-                        if sendingReset { ProgressView() }
-                    }
-                }
-                .disabled(sendingReset || session.email == nil)
-            } footer: {
-                Text("We’ll email you a code to set a new password. This also works if you signed up with Google or LinkedIn.")
             }
             .listRowBackground(Theme.surface)
 
@@ -92,10 +75,21 @@ struct SettingsView: View {
             .listRowBackground(Theme.surface)
 
             Section {
-                Button("Delete account", role: .destructive) { deleting = true }
-                    .frame(maxWidth: .infinity)
+                Button { Task { await sendReset() } } label: {
+                    HStack {
+                        SettingsLabel(title: "Change password", systemImage: "key.fill", color: Color(uiColor: UIColor(hex: 0x8E8E93)), glyph: .white)
+                        Spacer()
+                        if sendingReset { ProgressView() }
+                    }
+                }
+                .disabled(sendingReset || session.email == nil)
+                Button(role: .destructive) { deleting = true } label: {
+                    SettingsLabel(title: "Delete account", systemImage: "trash.fill", color: Theme.danger, glyph: .white, textColor: Theme.danger)
+                }
+            } header: {
+                Text("Danger zone").foregroundStyle(Theme.danger)
             } footer: {
-                Text("Permanently deletes your account and everything in it.")
+                Text("Change password emails you a code to set a new one, which also works if you signed up with Google or LinkedIn. Delete account permanently removes your account and everything in it.")
             }
             .listRowBackground(Theme.surface)
 
